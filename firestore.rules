@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read and write for app data synchronization
+    match /campus_events/{eventId} {
+      allow read, write: if true;
+    }
+
+    match /campus_locations/{locationId} {
+      allow read, write: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

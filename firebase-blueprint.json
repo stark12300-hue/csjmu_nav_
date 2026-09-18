@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "CampusEvent": {
+      "title": "CampusEvent",
+      "description": "Notice or event taking place at CSJM University",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "startDate": { "type": "string", "maxLength": 30 },
+        "endDate": { "type": "string", "maxLength": 30 },
+        "time": { "type": "string", "maxLength": 50 },
+        "venue": { "type": "string", "maxLength": 200 },
+        "posterImage": { "type": "string", "maxLength": 1000 },
+        "organizer": { "type": "string", "maxLength": 150 },
+        "contactEmail": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "isLive": { "type": "boolean" },
+        "likesCount": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title"]
+    },
+    "CampusLocation": {
+      "title": "CampusLocation",
+      "description": "Geographical location, department, building or facility on campus",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 150 },
+        "hindiTitle": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 50 },
+        "coordinates": { "type": "array" },
+        "block": { "type": "string", "maxLength": 100 },
+        "floor": { "type": "string", "maxLength": 50 },
+        "image": { "type": "string", "maxLength": 2000 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "hindiDescription": { "type": "string", "maxLength": 2000 },
+        "facilities": { "type": "array" },
+        "isCustom": { "type": "boolean" }
+      },
+      "required": ["id", "title", "coordinates"]
+    }
+  },
+  "firestore": {
+    "/campus_events/{eventId}": {
+      "schema": "CampusEvent",
+      "description": "College events and notices"
+    },
+    "/campus_locations/{locationId}": {
+      "schema": "CampusLocation",
+      "description": "Campus departments, buildings, and navigation waypoints"
+    }
+  }
+}

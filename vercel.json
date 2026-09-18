@@ -1,12 +1,10 @@
 {
+  "version": 2,
   "framework": "vite",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/api/teachers/login", "destination": "/api/teacher/login" },
-    { "source": "/api/teachers/session", "destination": "/api/teacher/session" },
-    { "source": "/api/teachers/reset-password", "destination": "/api/teacher/reset-password" },
-    { "source": "/api/teachers/logout", "destination": "/api/teacher/logout" },
-    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

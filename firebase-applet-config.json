@@ -1,12 +1,12 @@
 {
-  "projectId": "tranquil-rig-5t8c4",
-  "appId": "1:572000124748:web:94bd155459dfc0481399e9",
-  "apiKey": "AIzaSyAUMKyyqTYiZvdOOKiGY-4xpB22opWH4IU",
-  "authDomain": "tranquil-rig-5t8c4.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-csjmunav-0d28868a-8c1f-487d-99a3-ec120a4c7f88",
-  "storageBucket": "tranquil-rig-5t8c4.firebasestorage.app",
-  "messagingSenderId": "572000124748",
-  "measurementId": "",
-  "oAuthClientId": "572000124748-ho248vc365qiba6btajmt0r603ktrlke.apps.googleusercontent.com",
+  "projectId": "csjmu-nav",
+  "appId": "1:621673155191:web:8722743d639c0541a29472",
+  "apiKey": "AIzaSyCGd82Ik-0Vdw4AwM4wpfo1hGyLyni3yQE",
+  "authDomain": "csjmu-nav.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "csjmu-nav.firebasestorage.app",
+  "messagingSenderId": "621673155191",
+  "measurementId": "G-Q2EYFCQDCB",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

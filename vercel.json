@@ -1,0 +1,12 @@
+{
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/teachers/login", "destination": "/api/teacher/login" },
+    { "source": "/api/teachers/session", "destination": "/api/teacher/session" },
+    { "source": "/api/teachers/reset-password", "destination": "/api/teacher/reset-password" },
+    { "source": "/api/teachers/logout", "destination": "/api/teacher/logout" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "CSJMU Campus Navigator",
+  "short_name": "CSJMU Nav",
+  "description": "Interactive Campus Map, Department Locator & Faculty Cabin Finder for CSJMU Kanpur",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0284c7",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' width='512' height='512'><rect width='512' height='512' rx='128' fill='%230f172a'/><path d='M256 64L64 160l192 96 192-96-192-96zM64 256l192 96 192-96M64 352l192 96 192-96' stroke='%2338bdf8' stroke-width='32' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='256' cy='256' r='32' fill='%2338bdf8'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "navigation", "utilities"],
+  "lang": "en-IN"
+}

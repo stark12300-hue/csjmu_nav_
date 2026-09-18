@@ -1,0 +1,134 @@
+/* Admin + Events visual fixes */
+
+/* Targeted override for Admin Manager Modal section requested by user */
+div#root:nth-of-type(1) > div#csjmu-app-root:nth-of-type(1) > div#admin-manager-modal-backdrop:nth-of-type(4) > div#admin-manager-modal-card:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1),
+div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1),
+div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+div#root:nth-of-type(1) > div#csjmu-app-root:nth-of-type(1) > div#admin-manager-modal-backdrop:nth-of-type(4) > div#admin-manager-modal-card:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) h4,
+div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) h4 {
+  color: #0F172A !important;
+}
+
+div#root:nth-of-type(1) > div#csjmu-app-root:nth-of-type(1) > div#admin-manager-modal-backdrop:nth-of-type(4) > div#admin-manager-modal-card:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) p,
+div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) p {
+  color: #64748B !important;
+}
+
+/* Keep the Admin Portal visually separated from the viewport on mobile too. */
+#admin-manager-modal-backdrop {
+  padding: 8px !important;
+}
+
+#admin-manager-modal-card {
+  border: 1px solid rgba(148, 163, 184, 0.55) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22) !important;
+  height: calc(100% - 16px) !important;
+  max-height: calc(100vh - 16px) !important;
+}
+
+/* Keep event poster title text white and readable over the artwork. */
+#campus-events-modal-dialog .group .absolute.bottom-3.left-3.right-3.text-white {
+  background: transparent !important;
+  color: #ffffff !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85) !important;
+}
+
+#campus-events-modal-dialog .group .absolute.bottom-3.left-3.right-3.text-white h3 {
+  color: #ffffff !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
+}
+
+#campus-events-modal-dialog .group .absolute.bottom-3.left-3.right-3.text-white p {
+  color: #ffffff !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Password characters should stay compact instead of inheriting an oversized text style. */
+#admin-manager-modal-card input[type="password"],
+#admin-manager-modal-card input[type="text"][autocomplete="current-password"] {
+  font-size: 18px !important;
+  letter-spacing: 3px !important;
+  line-height: 1.2 !important;
+}
+
+/* Top map controls crisp white styling with NO blur/filter. */
+#main-app-header,
+#main-app-navbar,
+#main-app-header * {
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+#main-app-navbar {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  -webkit-box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  isolation: isolate !important;
+}
+
+/* Eliminate any halo or pseudo-element filters on the navbar */
+#main-app-navbar::before,
+#main-app-navbar::after {
+  content: none !important;
+  display: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Ensure header and navbar stay clean solid white in all display modes */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  #main-app-header,
+  #main-app-navbar {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    opacity: 1 !important;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  #main-app-header,
+  #main-app-navbar {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (min-width: 640px) {
+  #admin-manager-modal-backdrop {
+    padding: 12px !important;
+  }
+
+  #admin-manager-modal-card {
+    height: auto !important;
+    max-height: 90vh !important;
+    border-radius: 32px !important;
+  }
+}

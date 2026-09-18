@@ -1,0 +1,18 @@
+/* Keep Leaflet's internal panes below the app's fixed/mobile UI. */
+.leaflet-container {
+  position: relative !important;
+  z-index: 0 !important;
+  isolation: isolate;
+}
+
+/* Preserve Leaflet's normal internal layer ordering inside the map. */
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane,
+.leaflet-control-container {
+  /* Intentionally remain inside the map stacking context. */
+}

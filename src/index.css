@@ -1,0 +1,881 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   Google Maps / Apple Maps Modern Clean Light Theme
+   (Solid Crisp White Surfaces, Readable Slate Typography, University Royal Blue Accents)
+   ========================================================================= */
+:root {
+  color-scheme: light !important;
+  forced-color-adjust: none !important;
+}
+
+html {
+  color-scheme: light !important;
+  background-color: #F8FAFC !important;
+}
+
+@layer base {
+  body {
+    color-scheme: light !important;
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.012em;
+  }
+}
+
+/* Crisp Clean Modal Backdrop */
+#admin-manager-modal-backdrop,
+#dept-finder-modal-backdrop,
+#campus-events-modal-overlay,
+#submit-event-modal-backdrop,
+#app-download-modal-backdrop,
+#report-bug-modal-backdrop,
+#faculty-directory-modal-backdrop,
+#teacher-auth-modal-backdrop,
+#teacher-portal-modal-backdrop,
+#add-marker-modal-backdrop,
+#floor-plan-modal-backdrop,
+.native-modal-backdrop {
+  background: rgba(15, 23, 42, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* Crisp Solid White Cards & Modals */
+.ios-liquid-modal,
+.ios-liquid-card,
+#admin-manager-modal-card,
+#dept-finder-modal-card,
+#campus-events-modal-dialog,
+#event-detail-modal-card,
+#submit-event-modal-card,
+#app-download-modal-card,
+#report-bug-modal-card,
+#faculty-directory-modal-card,
+#teacher-auth-modal-card,
+#teacher-portal-modal-card,
+#add-marker-modal-card,
+#floor-plan-modal-card,
+.native-maps-card {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 
+    0 20px 45px -10px rgba(15, 23, 42, 0.18),
+    0 4px 14px -2px rgba(15, 23, 42, 0.08) !important;
+  color: #0F172A !important;
+  color-scheme: light !important;
+}
+
+/* High Contrast Crystal-Clear Readability for All Modals, Event Submit, and Admin Panels */
+#admin-manager-modal-card,
+#submit-event-modal-card,
+#campus-events-modal-dialog,
+#event-detail-modal-card,
+#dept-finder-modal-card,
+#faculty-directory-modal-card,
+#app-download-modal-card,
+#report-bug-modal-card,
+#building-detail-drawer,
+#teacher-auth-modal-card,
+#teacher-portal-modal-card {
+  color-scheme: light !important;
+}
+
+#admin-manager-modal-card h2,
+#admin-manager-modal-card h3,
+#admin-manager-modal-card h4,
+#submit-event-modal-card h2,
+#submit-event-modal-card h3,
+#submit-event-modal-card h4,
+#campus-events-modal-dialog h2,
+#campus-events-modal-dialog h3,
+#campus-events-modal-dialog h4,
+#event-detail-modal-card h2,
+#event-detail-modal-card h3,
+#event-detail-modal-card h4,
+#building-detail-drawer h2,
+#building-detail-drawer h3,
+#building-detail-drawer h4 {
+  color: #09090B !important;
+  font-weight: 800 !important;
+}
+
+#admin-manager-modal-card p,
+#submit-event-modal-card p,
+#campus-events-modal-dialog p:not([class*="text-white"]):not([class*="text-blue-200"]),
+#event-detail-modal-card p:not([class*="text-white"]):not([class*="text-blue-200"]) {
+  color: #1E293B !important;
+  font-weight: 500 !important;
+}
+
+#admin-manager-modal-card label,
+#submit-event-modal-card label,
+#campus-events-modal-dialog label {
+  color: #0F172A !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  letter-spacing: -0.01em !important;
+}
+
+#admin-manager-modal-card input:not([type="checkbox"]):not([type="radio"]),
+#admin-manager-modal-card select,
+#admin-manager-modal-card textarea,
+#submit-event-modal-card input:not([type="checkbox"]):not([type="radio"]),
+#submit-event-modal-card select,
+#submit-event-modal-card textarea,
+#campus-events-modal-dialog input:not([type="checkbox"]):not([type="radio"]) {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+  border: 1.5px solid #CBD5E1 !important;
+  font-weight: 500 !important;
+}
+
+#admin-manager-modal-card input::placeholder,
+#admin-manager-modal-card textarea::placeholder,
+#submit-event-modal-card input::placeholder,
+#submit-event-modal-card textarea::placeholder,
+#campus-events-modal-dialog input::placeholder {
+  color: #64748B !important;
+  opacity: 1 !important;
+}
+
+#admin-manager-modal-card input:focus,
+#admin-manager-modal-card select:focus,
+#admin-manager-modal-card textarea:focus,
+#submit-event-modal-card input:focus,
+#submit-event-modal-card select:focus,
+#submit-event-modal-card textarea:focus,
+#campus-events-modal-dialog input:focus {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+  border-color: #2563EB !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18) !important;
+}
+
+#admin-manager-modal-card input[type="password"] {
+  font-size: 24px !important;
+  letter-spacing: 0.4em !important;
+  font-family: monospace, ui-monospace, monospace !important;
+  font-weight: 800 !important;
+  color: #09090B !important;
+}
+
+/* Clean White Headers */
+.ios-liquid-header,
+.native-modal-header {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid #F1F5F9 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  color: #0F172A !important;
+}
+
+/* Clean Tabs Bar */
+.ios-liquid-tabs-bar,
+.native-modal-tabs {
+  background: #F8FAFC !important;
+  background-color: #F8FAFC !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+/* Clean Light Subcards & List Items */
+.ios-liquid-subcard,
+.native-subcard {
+  background: #F8FAFC !important;
+  background-color: #F8FAFC !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  color: #0F172A !important;
+}
+
+/* Clean Form Inputs */
+.ios-liquid-input,
+.native-input {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1.5px solid #CBD5E1 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  color: #0F172A !important;
+}
+.ios-liquid-input:focus,
+.native-input:focus {
+  background: #FFFFFF !important;
+  border-color: #1A73E8 !important; /* Official Google Blue */
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.18) !important;
+  color: #0F172A !important;
+  outline: none !important;
+}
+
+/* Floating Navigation Pill Capsule & Controls */
+.ios-liquid-nav,
+.ios-liquid-nav-dark {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 
+    0 12px 30px -4px rgba(0, 0, 0, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.04) !important;
+  color: #0F172A !important;
+}
+
+.ios-liquid-glass {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 
+    0 12px 28px -4px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  color: #0F172A !important;
+}
+
+.ios-dock {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 
+    0 12px 32px -4px rgba(0, 0, 0, 0.12),
+    0 4px 10px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  color: #0F172A !important;
+}
+
+.ios-spring {
+  transition: all 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ios-press {
+  transition: transform 0.15s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.15s ease;
+}
+.ios-press:active {
+  transform: scale(0.94);
+  opacity: 0.9;
+}
+
+/* Custom Leaflet Map Clean Popups (Google Maps Style) */
+.leaflet-popup-content-wrapper {
+  background: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #0F172A !important;
+  border-radius: 16px !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  padding: 4px !important;
+}
+
+.leaflet-popup-tip {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+/* Clean Google Maps Location Marker Name Badge */
+.custom-campus-marker {
+  overflow: visible !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.ios-marker-name-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: 170px;
+  white-space: nowrap;
+  background: #FFFFFF;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid #CBD5E1;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  color: #0F172A;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 2.5px 9px;
+  border-radius: 9999px;
+  text-shadow: none;
+  transition: all 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ios-marker-name-pill.destination {
+  background: #EFF6FF !important;
+  border: 1.5px solid #2563EB !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25) !important;
+  color: #1D4ED8 !important;
+}
+
+.ios-marker-name-pill.startpoint {
+  background: #ECFDF5 !important;
+  border: 1.5px solid #10B981 !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25) !important;
+  color: #047857 !important;
+}
+
+.ios-marker-name-pill.selected {
+  background: #EFF6FF !important;
+  border: 1.5px solid #1D4ED8 !important;
+  box-shadow: 0 6px 18px rgba(29, 78, 216, 0.25) !important;
+  color: #1E40AF !important;
+}
+
+/* Modal Typography and Container Defaults */
+.ios-liquid-modal .text-zinc-950,
+.ios-liquid-modal .text-zinc-900,
+.ios-liquid-card .text-zinc-950,
+.ios-liquid-card .text-zinc-900 {
+  color: #0F172A !important;
+}
+
+.ios-liquid-modal .text-zinc-800,
+.ios-liquid-modal .text-zinc-700,
+.ios-liquid-card .text-zinc-800,
+.ios-liquid-card .text-zinc-700 {
+  color: #334155 !important;
+}
+
+.ios-liquid-modal .text-zinc-600,
+.ios-liquid-modal .text-zinc-500,
+.ios-liquid-card .text-zinc-600,
+.ios-liquid-card .text-zinc-500 {
+  color: #64748B !important;
+}
+
+.ios-liquid-modal .bg-zinc-50,
+.ios-liquid-card .bg-zinc-50 {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+.ios-liquid-modal .border-zinc-200,
+.ios-liquid-card .border-zinc-200 {
+  border-color: #E2E8F0 !important;
+}
+
+/* ==========================================================================
+   Zoom-Responsive Smart Visibility for Campus Location Names & Pins
+   - At overview/regional zoom (data-zoom-tier="low" / "mid"):
+     Map is clean and uncluttered. Names stay tucked away unless hovered, tapped,
+     selected, or part of an active navigation route.
+   - When zoomed in (data-zoom-tier="high", zoom >= 16.5):
+     All location names automatically blossom and remain visible.
+   ========================================================================== */
+
+/* Hidden by default in overview zoom */
+[data-zoom-tier="low"] .ios-marker-name-pill:not(.destination):not(.startpoint):not(.selected):not(.active-drag):not(.is-prominent),
+[data-zoom-tier="mid"] .ios-marker-name-pill:not(.destination):not(.startpoint):not(.selected):not(.active-drag):not(.is-prominent) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translateY(-4px) scale(0.9) !important;
+  pointer-events: none !important;
+  transition: opacity 0.22s cubic-bezier(0.32, 0.72, 0, 1), transform 0.22s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+/* Reveal immediately on hover or touch focus in overview zoom */
+[data-zoom-tier="low"] .custom-campus-marker:hover .ios-marker-name-pill,
+[data-zoom-tier="mid"] .custom-campus-marker:hover .ios-marker-name-pill,
+[data-zoom-tier="low"] .group:hover .ios-marker-name-pill,
+[data-zoom-tier="mid"] .group:hover .ios-marker-name-pill {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Zoomed-in Tier (high zoom >= 16.5): Location names stay cleanly revealed */
+[data-zoom-tier="high"] .ios-marker-name-pill {
+  opacity: 0.96 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+  transition: opacity 0.25s cubic-bezier(0.32, 0.72, 0, 1), transform 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+[data-zoom-tier="high"] .custom-campus-marker:hover .ios-marker-name-pill,
+[data-zoom-tier="high"] .group:hover .ios-marker-name-pill {
+  opacity: 1 !important;
+  transform: translateY(0) scale(1.05) !important;
+  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Prominent / Active / Selected locations always visible at any zoom */
+.ios-marker-name-pill.destination,
+.ios-marker-name-pill.startpoint,
+.ios-marker-name-pill.selected,
+.ios-marker-name-pill.active-drag,
+.ios-marker-name-pill.is-prominent {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1.05) !important;
+  pointer-events: auto !important;
+  z-index: 100 !important;
+}
+
+/* Regional zoom (< 15.2): Scale pins slightly for panoramic clarity */
+[data-zoom-tier="low"] .custom-campus-marker {
+  transform: scale(0.86);
+  transition: transform 0.2s ease;
+}
+
+.leaflet-tooltip.native-maps-tooltip,
+.leaflet-tooltip.ios-liquid-tooltip {
+  background: rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(24px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  color: #09090b !important;
+  font-weight: 800 !important;
+  font-size: 11px !important;
+  border-radius: 9999px !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.14), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.98) !important;
+}
+
+.leaflet-tooltip.native-maps-tooltip::before,
+.leaflet-tooltip.ios-liquid-tooltip::before {
+  border-top-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Leaflet Zoom Control Option 2 Frosted Glass pill styling */
+.leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.16) !important;
+  border-radius: 9999px !important;
+  overflow: hidden !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+}
+
+.leaflet-control-zoom a {
+  background: transparent !important;
+  color: #1C1C1E !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #007AFF !important;
+}
+
+.leaflet-control-zoom a:active {
+  transform: scale(0.92) !important;
+}
+
+.leaflet-control-zoom-in {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+.leaflet-popup-tip {
+  background: #FFFFFF !important;
+}
+
+.leaflet-popup-close-button {
+  color: #71717A !important;
+  padding: 6px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #18181B !important;
+}
+
+/* Minimalist Smooth Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4D4D8;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A1A1AA;
+}
+
+/* Mobile Notch & Safe Area Inset Support */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+#main-app-header {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+
+#main-app-navbar {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+
+#floating-navigation-wrapper {
+  top: 6.75rem;
+}
+
+@media (min-width: 768px) {
+  #floating-navigation-wrapper {
+    top: 4.25rem;
+  }
+}
+
+
+/* Admin console: compact phone layout and safe-area support */
+@media (max-width: 640px) {
+  #admin-manager-modal-card {
+    width: 100vw;
+    max-width: 100vw;
+    border-radius: 0;
+  }
+
+  #admin-manager-modal-card input,
+  #admin-manager-modal-card select,
+  #admin-manager-modal-card textarea {
+    max-width: 100%;
+    font-size: 16px; /* prevents iOS Safari auto-zoom */
+  }
+
+  #admin-manager-modal-card button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #admin-manager-modal-card .overflow-x-auto {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  #admin-manager-modal-card .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Mobile-first fit polish: keeps every panel inside narrow phone screens */
+html, body, #root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+html {
+  height: 100%;
+  height: -webkit-fill-available;
+}
+
+body {
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+button, input, select, textarea {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  body {
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* Admin console */
+  #admin-manager-modal-card {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0;
+    border: 0;
+    border-radius: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  #admin-manager-modal-card > div:first-child {
+    padding-top: max(0.65rem, env(safe-area-inset-top));
+  }
+
+  #admin-manager-modal-card > div:first-child > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  #admin-manager-modal-card > div:first-child h2,
+  #admin-manager-modal-card > div:first-child p {
+    max-width: 62vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #admin-manager-modal-card > div:nth-child(2) {
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+
+  #admin-manager-modal-card form,
+  #admin-manager-modal-card section,
+  #admin-manager-modal-card [class*="grid"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #admin-manager-modal-card [class*="grid-cols-2"],
+  #admin-manager-modal-card [class*="grid-cols-3"],
+  #admin-manager-modal-card [class*="grid-cols-4"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #admin-manager-modal-card [class*="flex-row"] {
+    min-width: 0;
+  }
+
+  #admin-manager-modal-card input,
+  #admin-manager-modal-card select,
+  #admin-manager-modal-card textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    font-size: 16px !important;
+  }
+
+  #admin-manager-modal-card img,
+  #admin-manager-modal-card video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  #admin-manager-modal-card .overflow-x-auto {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  #admin-manager-modal-card .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Make tab/button rows horizontally scrollable instead of overflowing the phone. */
+  #admin-manager-modal-card .whitespace-nowrap {
+    max-width: 100%;
+  }
+
+  /* Keep Leaflet controls and popups within the viewport. */
+  .leaflet-control-container {
+    max-width: 100vw;
+  }
+
+  .leaflet-popup-content {
+    max-width: min(78vw, 280px);
+    margin: 10px 12px !important;
+  }
+
+  /* Safe-area spacing for iPhones and Android notches/home indicators */
+  .fixed.inset-0 {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+}
+
+@media (max-width: 380px) {
+  #admin-manager-modal-card > div:first-child {
+    gap: 0.5rem;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+  }
+
+  #admin-manager-modal-card > div:first-child .w-10 {
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 2rem;
+  }
+
+  #admin-manager-modal-card > div:first-child h2 {
+    font-size: 0.75rem;
+    max-width: 55vw;
+  }
+
+  #admin-manager-modal-card > div:first-child p {
+    display: none;
+  }
+
+  #admin-manager-modal-card > div:first-child button {
+    min-height: 34px;
+  }
+}
+
+
+/* iPhone viewport hardening: prevent flex/grid children from creating horizontal overflow. */
+@media screen and (max-width: 767px) {
+  #csjmu-app-root {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #csjmu-app-root > * {
+    max-width: 100vw;
+    min-width: 0;
+  }
+
+  /* Every full-screen modal uses the actual viewport, including iPhone safe areas. */
+  .fixed.inset-0 {
+    width: 100vw;
+    max-width: 100vw;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  /* Admin modal */
+  #admin-manager-modal-card {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #admin-manager-modal-card > div:first-child {
+    width: 100%;
+    min-width: 0;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  #admin-manager-modal-card > div:first-child > div:first-child {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    overflow: hidden;
+  }
+
+  #admin-manager-modal-card > div:first-child > div:last-child {
+    flex: 0 0 auto;
+  }
+
+  #admin-manager-modal-card > div:nth-child(2) {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  #admin-manager-modal-card .flex,
+  #admin-manager-modal-card .grid,
+  #admin-manager-modal-card form,
+  #admin-manager-modal-card section {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #admin-manager-modal-card .flex > *,
+  #admin-manager-modal-card .grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #admin-manager-modal-card input,
+  #admin-manager-modal-card select,
+  #admin-manager-modal-card textarea,
+  #admin-manager-modal-card button {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  #admin-manager-modal-card .overflow-x-auto {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Other app modals: keep the card inside the iPhone viewport. */
+  .fixed.inset-0 > .bg-white,
+  .fixed.inset-0 > .bg-slate-950,
+  .fixed.inset-0 > [class*="max-w-"] {
+    max-width: calc(100vw - 24px) !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  /* Avoid iOS zoom while keeping controls readable. */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  img, video, canvas, svg {
+    max-width: 100%;
+  }
+}
+
+@supports (height: 100svh) {
+  @media screen and (max-width: 767px) {
+    #csjmu-app-root,
+    #admin-manager-modal-card {
+      height: 100svh !important;
+      max-height: 100svh !important;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "CSJMU Campus Navigator",
+  "description": "Interactive campus navigation, faculty cabin locator, and turn-by-turn route guide for CSJMU Kanpur.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

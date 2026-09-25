@@ -108,7 +108,7 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
     return (
       <div
         id="nav-panel-minimized-pill"
-        className="bg-white rounded-full shadow-2xl p-1.5 sm:p-2 text-slate-900 flex items-center justify-between gap-2.5 max-w-sm sm:max-w-md w-full animate-fade-in border border-slate-200"
+        className="bg-white rounded-full shadow-2xl p-1.5 sm:p-2 text-slate-900 flex items-center justify-between gap-2.5 max-w-sm sm:max-w-md w-full border border-slate-200"
       >
         <div
           onClick={onToggleMinimize}
@@ -161,6 +161,17 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
+
+          {onClearRoute && (
+            <button
+              id="btn-minimized-close-nav"
+              onClick={onClearRoute}
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition ios-press border border-slate-200"
+              title={language === 'hi' ? 'नेविगेशन बंद करें' : 'Close Navigation'}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
     );
@@ -172,7 +183,7 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
   return (
     <div
       id="campus-navigation-panel"
-      className="bg-white rounded-3xl shadow-2xl p-4 text-slate-900 max-w-sm sm:max-w-md w-full border border-slate-200 animate-fade-in"
+      className="bg-white rounded-3xl shadow-2xl p-4 text-slate-900 max-w-sm sm:max-w-md w-full border border-slate-200"
     >
       {/* Header with Minimize Button */}
       <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-3">

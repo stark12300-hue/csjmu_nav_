@@ -168,6 +168,8 @@ export function App() {
   const [navigationRoute, setNavigationRoute] = useState<NavigationRoute | null>(null);
   const lastRoadRouteRequestRef = useRef<{ time: number; coords: [number, number] | null }>({ time: 0, coords: null });
   const [focusCoordinates, setFocusCoordinates] = useState<[number, number] | null>(null);
+  const [navTriggerId, setNavTriggerId] = useState<number>(0);
+  const [liveNavTriggerId, setLiveNavTriggerId] = useState<number>(0);
 
   // GPS User Live Location & Compass Heading
   const [userCoordinates, setUserCoordinates] = useState<[number, number] | null>(null);
@@ -415,25 +417,69 @@ export function App() {
     savePreferredLanguage(nextLang);
   };
 
-  // Watch GPS Geolocation & Orientation
+  // Watch GPS Geolocation & Orientation (with GPS Micro-Jitter Filter: > 1.5m movement threshold)
   useEffect(() => {
     let watchId: number | null = null;
+    let lastHeading = -1;
+    let lastHeadingTime = 0;
+
+    let lastCoords: [number, number] | null = null;
+
+    const handlePositionUpdate = (pos: GeolocationPosition) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        return;
+      }
+      const newCoords: [number, number] = [lat, lng];
+
+      // GPS Micro-Jitter Filter: Only updates the map when the user has actually moved more than 1.5 meters
+      // (so the phone doesn't heat up or lag while standing still). Always uses live GPS coordinates.
+      if (!lastCoords) {
+        lastCoords = newCoords;
+        setUserCoordinates(newCoords);
+      } else {
+        const movedMeters = getDistanceMeters(lastCoords, newCoords);
+        if (movedMeters > 1.5) {
+          lastCoords = newCoords;
+          setUserCoordinates(newCoords);
+        }
+      }
+
+      if (typeof pos.coords.heading === 'number' && !isNaN(pos.coords.heading) && pos.coords.heading >= 0) {
+        const diff = Math.abs(pos.coords.heading - lastHeading);
+        if (lastHeading < 0 || diff >= 5.0 || (360 - diff) >= 5.0) {
+          lastHeading = pos.coords.heading;
+          setUserHeading(Math.round(pos.coords.heading));
+        }
+      }
+    };
+
     if ('geolocation' in navigator) {
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          setUserCoordinates([pos.coords.latitude, pos.coords.longitude]);
-          if (typeof pos.coords.heading === 'number' && !isNaN(pos.coords.heading) && pos.coords.heading >= 0) {
-            setUserHeading(pos.coords.heading);
-          }
-        },
+      // 1. Fetch immediate live GPS coordinate fix without stale cache
+      navigator.geolocation.getCurrentPosition(
+        handlePositionUpdate,
         (err) => {
-          console.warn('Geolocation access:', err.message);
+          console.warn('Initial live GPS fix:', err.message);
         },
-        { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      );
+
+      // 2. Continuously stream live GPS coordinates directly from hardware sensors (maximumAge: 0)
+      watchId = navigator.geolocation.watchPosition(
+        handlePositionUpdate,
+        (err) => {
+          console.warn('Geolocation live stream error:', err.message);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
       );
     }
 
     const handleDeviceOrientation = (e: DeviceOrientationEvent) => {
+      const now = Date.now();
+      // Throttle heading updates to maximum 8 times per second to prevent UI re-render thrashing
+      if (now - lastHeadingTime < 125) return;
+
       let heading: number | null = null;
       if ((e as any).webkitCompassHeading !== undefined) {
         heading = (e as any).webkitCompassHeading;
@@ -441,7 +487,14 @@ export function App() {
         heading = (360 - e.alpha) % 360;
       }
       if (heading !== null && !isNaN(heading)) {
-        setUserHeading(heading);
+        // Robust deadband filter: ignore handheld magnetometer noise below 7.5 degrees
+        let diff = Math.abs(heading - lastHeading);
+        if (diff > 180) diff = 360 - diff;
+        if (lastHeading < 0 || diff >= 7.5) {
+          lastHeading = heading;
+          lastHeadingTime = now;
+          setUserHeading(Math.round(heading));
+        }
       }
     };
 
@@ -543,25 +596,22 @@ export function App() {
 
       let cancelled = false;
       const calculate = async () => {
-        // 1. If either point is outside campus (e.g. from user house / city road),
-        // or road router throttle has elapsed, ALWAYS prioritize real road routing:
-        if (!isPurelyCampusRoute || shouldUseRoadRouter) {
-          if (shouldUseRoadRouter) {
-            lastRoadRouteRequestRef.current = { time: now, coords: liveStart.coordinates };
-          }
-          const roadRoute = await calculateRoadRoute(liveStart, toLocation);
-          if (cancelled) return;
-          if (roadRoute && roadRoute.path.length > 1) {
-            setNavigationRoute(roadRoute);
-            return;
-          }
-        }
-
-        // 2. If both locations are inside CSJMU campus, use the local high-precision paved walkway graph:
+        // 1. If both locations are inside CSJMU campus, use the local high-precision paved walkway graph immediately (Instant & 100% reliable)
         if (isPurelyCampusRoute) {
           const campusRoute = calculateCampusRoute(liveStart, toLocation);
           if (!cancelled && campusRoute) {
             setNavigationRoute(campusRoute);
+            return;
+          }
+        }
+
+        // 2. If either point is outside campus (e.g. from user house / city road), prioritize real city road routing
+        if (!isPurelyCampusRoute && shouldUseRoadRouter) {
+          lastRoadRouteRequestRef.current = { time: now, coords: liveStart.coordinates };
+          const roadRoute = await calculateRoadRoute(liveStart, toLocation);
+          if (cancelled) return;
+          if (roadRoute && roadRoute.path.length > 1) {
+            setNavigationRoute(roadRoute);
             return;
           }
         }
@@ -614,10 +664,15 @@ export function App() {
   // Start Navigation To Location
   const handleStartNavigationTo = (destLoc: CampusLocation, startLoc?: CampusLocation) => {
     setToLocation(destLoc);
+    setNavTriggerId(Date.now());
+    setFocusCoordinates(destLoc.coordinates);
+
     if (startLoc) {
       setFromLocation(startLoc);
-    } else if (!fromLocation) {
-      if (userCoordinates) {
+    } else {
+      // If user is currently physically on campus with GPS, use live GPS; otherwise default to Gate 1
+      const isGpsOnCampus = userCoordinates && isCoordinateOnCampus(userCoordinates);
+      if (isGpsOnCampus) {
         setFromLocation({
           id: 'user-current-gps',
           title: language === 'hi' ? 'मेरी लाइव GPS लोकेशन' : 'My Live GPS Location',
@@ -628,11 +683,14 @@ export function App() {
           description: 'Your current real-time GPS location.',
         });
       } else {
-        const gate1 = locations.find((l) => l.id === 'loc-gate-1') || null;
-        setFromLocation(gate1);
+        // If fromLocation is not set or is identical to destination, default to Main Gate 1
+        if (!fromLocation || fromLocation.id === destLoc.id) {
+          const gate1 = locations.find((l) => l.id === 'loc-gate-1') || null;
+          setFromLocation(gate1);
+        }
       }
     }
-    // Reset throttle ref to trigger immediate by-road computation
+    // Reset throttle ref to trigger immediate computation
     lastRoadRouteRequestRef.current = { time: 0, coords: null };
     setSelectedLocation(null);
     setIsNavPanelMinimized(true);
@@ -644,6 +702,10 @@ export function App() {
     const oldTo = toLocation;
     setFromLocation(oldTo);
     setToLocation(oldFrom);
+    if (oldFrom) {
+      setNavTriggerId(Date.now());
+      setFocusCoordinates(oldFrom.coordinates);
+    }
     lastRoadRouteRequestRef.current = { time: 0, coords: null };
   };
 
@@ -653,6 +715,10 @@ export function App() {
     setToLocation(null);
     setNavigationRoute(null);
     setIsLiveNavActive(false);
+    setFocusCoordinates(null);
+    setSelectedLocation(null);
+    setNavTriggerId(0);
+    setLiveNavTriggerId(0);
     lastRoadRouteRequestRef.current = { time: 0, coords: null };
   };
 
@@ -1389,7 +1455,7 @@ export function App() {
     <div id="csjmu-app-root" className="relative w-screen h-screen overflow-hidden bg-[#F2F2F7] select-none font-sans">
       {/* 1. Top Navbar (Header, Quick Search, Language Switch, Map Style & Modals) */}
       {!isZenMode && !isLiveNavActive && (
-        <div id="top-navbar-wrapper" className="absolute top-0 inset-x-0 z-30 pointer-events-auto">
+        <div id="top-navbar-wrapper" className="absolute top-0 inset-x-0 z-40 pointer-events-auto">
           <Navbar
             locations={locations}
             courses={coursesList}
@@ -1453,6 +1519,10 @@ export function App() {
           isLiveNavActive={isLiveNavActive}
           activeLiveNavStepIdx={activeLiveNavStepIdx}
           userHeading={userHeading}
+          isNavPanelMinimized={isNavPanelMinimized}
+          toLocation={toLocation}
+          navTriggerId={navTriggerId}
+          liveNavTriggerId={liveNavTriggerId}
         />
       </div>
 
@@ -1527,14 +1597,20 @@ export function App() {
       {!isZenMode && !isLiveNavActive && (toLocation || fromLocation) && (
         <div
           id="floating-navigation-wrapper"
-          className="absolute left-2 right-2 sm:left-4 sm:right-auto z-20 pointer-events-auto flex justify-center sm:justify-start top-[6.75rem] md:top-[4.25rem]"
+          className="fixed left-2 right-2 sm:left-4 sm:right-auto sm:max-w-md z-30 pointer-events-auto flex justify-center sm:justify-start top-[4.5rem] md:top-[4.25rem] transform-none"
         >
           <NavigationPanel
             locations={locations}
             fromLocation={fromLocation}
             toLocation={toLocation}
-            onSelectFrom={(loc) => setFromLocation(loc)}
-            onSelectTo={(loc) => setToLocation(loc)}
+            onSelectFrom={(loc) => {
+              setFromLocation(loc);
+              if (loc) setNavTriggerId(Date.now());
+            }}
+            onSelectTo={(loc) => {
+              setToLocation(loc);
+              if (loc) setNavTriggerId(Date.now());
+            }}
             onSwapLocations={handleSwapLocations}
             route={navigationRoute}
             onClearRoute={handleClearRoute}
@@ -1545,6 +1621,7 @@ export function App() {
               navigationAudio.unlockAudio();
               setActiveLiveNavStepIdx(0);
               setIsLiveNavActive(true);
+              setLiveNavTriggerId(Date.now());
             }}
             isMinimized={isNavPanelMinimized}
             onToggleMinimize={() => setIsNavPanelMinimized(!isNavPanelMinimized)}

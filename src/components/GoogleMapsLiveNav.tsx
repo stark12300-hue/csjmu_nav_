@@ -57,10 +57,7 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
   const currentStep: NavigationStep | undefined = route.steps[currentStepIdx];
   const nextStep: NavigationStep | undefined = route.steps[currentStepIdx + 1];
 
-  // Follow the user's real GPS progress instead of leaving the HUD on the
-  // first step forever. Step coordinates are graph nodes/entrances, so the
-  // closest step ahead of the user is a much safer progress signal than
-  // simply advancing after a timer.
+  // Follow real GPS only when user is physically on campus within 35 meters of route
   const gpsStepIdx = useMemo(() => {
     if (!userCoordinates || route.steps.length === 0) return null;
 
@@ -74,25 +71,38 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
       }
     });
 
-    return bestIdx;
+    // Only lock to GPS if physically within 35m of the route
+    if (bestDistance <= 35) {
+      return bestIdx;
+    }
+    return null;
   }, [userCoordinates, route.steps]);
 
+  // Strictly monotonic step progression: GPS drift can NEVER snap navigation backwards
   useEffect(() => {
+    if (!userCoordinates) return;
+
+    // Check if user has arrived at the final destination (within 12 meters)
+    const destDistance = getDistanceMeters(userCoordinates, toLocation.coordinates);
+    if (destDistance <= 12 && currentStepIdx < route.steps.length - 1) {
+      updateStep(route.steps.length - 1);
+      return;
+    }
+
     if (gpsStepIdx === null) return;
 
-    // Do not jump backwards because GPS can fluctuate a few metres.
-    // Move forward when the user reaches a route step or comes within 20 m.
-    const currentDistance = currentStep
-      ? getDistanceMeters(userCoordinates!, currentStep.coordinates)
-      : Infinity;
     const nextDistance = nextStep
-      ? getDistanceMeters(userCoordinates!, nextStep.coordinates)
+      ? getDistanceMeters(userCoordinates, nextStep.coordinates)
       : Infinity;
 
-    if (gpsStepIdx > currentStepIdx || nextDistance <= 20 || currentDistance <= 12) {
-      updateStep(Math.max(currentStepIdx, gpsStepIdx));
+    // If closer than 16 meters to the next upcoming turn, advance forward to next step
+    if (nextDistance <= 16 && currentStepIdx < route.steps.length - 1) {
+      updateStep(currentStepIdx + 1);
+    } else if (gpsStepIdx > currentStepIdx) {
+      // Only advance forward if GPS points ahead
+      updateStep(gpsStepIdx);
     }
-  }, [gpsStepIdx, currentStepIdx, currentStep, nextStep, userCoordinates, route.steps.length]);
+  }, [gpsStepIdx, currentStepIdx, nextStep, userCoordinates, toLocation.coordinates, route.steps.length]);
 
   // A freshly recalculated route can have fewer/more steps. Keep the index
   // valid and reset only when the new route actually starts somewhere else.
@@ -166,10 +176,10 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
   return (
     <div
       id="live-nav-heads-up-display"
-      className="fixed inset-x-0 top-0 z-50 pointer-events-none p-3 sm:p-4 flex flex-col items-center animate-fade-in"
+      className="fixed inset-x-0 top-0 z-[1000] pointer-events-none p-2.5 sm:p-4 pt-[max(0.75rem,env(safe-area-inset-top))] flex flex-col items-center transform-none select-none"
     >
-      {/* Top Banner (HUD) - Clean Google Maps Style */}
-      <div className="pointer-events-auto w-full max-w-lg bg-white rounded-3xl shadow-2xl p-4 text-slate-900 border border-slate-200">
+      {/* Top Banner (HUD) - Clean Google Maps Style Hard-Locked to Viewport */}
+      <div className="pointer-events-auto w-full max-w-lg bg-white rounded-3xl shadow-2xl p-3.5 sm:p-4 text-slate-900 border border-slate-200 transform-none">
         <div className="flex items-center justify-between gap-3">
           {/* Turn Arrow Indicator */}
           <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0 shadow-2xs">
@@ -214,9 +224,9 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
           </div>
         </div>
 
-        {/* Step Forward / Backward Controls for Testing/Live walking */}
-        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-1.5">
+        {/* Step Forward / Backward Controls */}
+        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               disabled={currentStepIdx === 0}
               onClick={() => updateStep(currentStepIdx - 1)}
@@ -227,7 +237,7 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
             <button
               disabled={currentStepIdx === route.steps.length - 1}
               onClick={() => updateStep(currentStepIdx + 1)}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-30 rounded-full font-bold transition shadow-xs ios-press border border-blue-600 cursor-pointer"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-30 rounded-full font-bold transition shadow-xs ios-press border border-blue-600 cursor-pointer"
             >
               {language === 'hi' ? 'अगला मोड़' : 'Next Turn'} →
             </button>

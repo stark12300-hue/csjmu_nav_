@@ -16,3 +16,19 @@
 .leaflet-control-container {
   /* Intentionally remain inside the map stacking context. */
 }
+
+/* Smooth tile zoom rendering and anti-grey flash */
+.leaflet-tile {
+  will-change: transform, opacity;
+  image-rendering: auto;
+}
+
+.leaflet-tile-loaded {
+  opacity: 1 !important;
+  transition: opacity 0.15s ease-in;
+}
+
+/* Campus ground color backdrop so zooming transitions never show harsh grey gaps */
+.leaflet-container {
+  background-color: #f1f5f9 !important;
+}

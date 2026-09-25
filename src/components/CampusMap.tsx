@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import L from 'leaflet';
 import { CampusLocation, Language, MapStyle, NavigationRoute, TeacherAccount } from '../types';
 import { CSJMU_CENTER, CAMPUS_BOUNDS } from '../data/csjmuCampusData';
@@ -31,6 +31,10 @@ interface CampusMapProps {
   isLiveNavActive?: boolean;
   activeLiveNavStepIdx?: number;
   userHeading?: number | null;
+  isNavPanelMinimized?: boolean;
+  toLocation?: CampusLocation | null;
+  navTriggerId?: number;
+  liveNavTriggerId?: number;
 }
 
 export const CampusMap: React.FC<CampusMapProps> = ({
@@ -58,6 +62,10 @@ export const CampusMap: React.FC<CampusMapProps> = ({
   isLiveNavActive = false,
   activeLiveNavStepIdx = 0,
   userHeading = null,
+  isNavPanelMinimized = true,
+  toLocation = null,
+  navTriggerId = 0,
+  liveNavTriggerId = 0,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -113,16 +121,13 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       center: CSJMU_CENTER,
       zoom: 16,
       minZoom: 10,
-      maxZoom: 20,
+      maxZoom: 21,
       maxBounds: [
         [26.2, 80.0],
         [26.8, 80.6],
       ],
       zoomControl: false,
     });
-
-    // Add zoom control at bottom right (placed nicely)
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     // Marker Layer Group
     const markersGroup = L.layerGroup().addTo(map);
@@ -143,10 +148,14 @@ export const CampusMap: React.FC<CampusMapProps> = ({
 
     updateZoomTier(16);
 
-    map.on('zoom zoomend', () => {
+    map.on('zoomend', () => {
       const z = map.getZoom();
-      setCurrentZoom(z);
       updateZoomTier(z);
+      setCurrentZoom((prevZ) => {
+        const wasLow = prevZ < 15.2;
+        const isLow = z < 15.2;
+        return wasLow !== isLow ? z : prevZ;
+      });
     });
 
     // Detect when user manually pans/drags map during live navigation
@@ -186,30 +195,56 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       map.removeLayer(tileLayerRef.current);
     }
 
-    let url = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+    let url = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
     let attribution = '&copy; Google Maps &copy; OpenStreetMap contributors';
-    let maxZoom = 20;
+    let maxZoom = 21;
+    let maxNativeZoom = 19;
+    let subdomains: string | string[] = ['0', '1', '2', '3'];
 
     if (mapStyle === 'satellite') {
-      url = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      url = 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
       attribution = '&copy; Google Maps Imagery';
-      maxZoom = 20;
+      maxZoom = 21;
+      maxNativeZoom = 19;
+      subdomains = ['0', '1', '2', '3'];
     } else if (mapStyle === 'clean') {
       url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
       attribution = '&copy; CARTO &copy; OpenStreetMap';
-      maxZoom = 19;
+      maxZoom = 20;
+      maxNativeZoom = 19;
+      subdomains = 'abcd';
     } else {
       // Default / Streets: Official Google Maps Light Vector tiles
-      url = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+      url = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
       attribution = '&copy; Google Maps &copy; OpenStreetMap contributors';
-      maxZoom = 20;
+      maxZoom = 21;
+      maxNativeZoom = 19;
+      subdomains = ['0', '1', '2', '3'];
     }
 
     const tileLayer = L.tileLayer(url, {
       attribution,
       maxZoom,
-      subdomains: 'abcd',
+      maxNativeZoom,
+      subdomains,
+      keepBuffer: 8,
+      updateWhenIdle: false,
+      updateWhenZooming: true,
+      crossOrigin: true,
     }).addTo(map);
+
+    // Gracefully handle slow or dropped tile requests on weak cellular networks
+    tileLayer.on('tileerror', (error: any) => {
+      const tile = error.tile as HTMLImageElement;
+      if (tile && !tile.dataset.retried) {
+        tile.dataset.retried = '1';
+        setTimeout(() => {
+          if (tile && error.url) {
+            tile.src = error.url;
+          }
+        }, 600);
+      }
+    });
 
     tileLayerRef.current = tileLayer;
   }, [mapStyle]);
@@ -274,7 +309,34 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       const title = language === 'hi' ? loc.hindiTitle : loc.title;
       const isCustom = !!loc.isCustom;
 
-      // Color theme based on category or route status
+      // Color theme & distinct categorized SVG icons based on category and facility sub-type
+      const lowerId = (loc.id || '').toLowerCase();
+      const lowerTitle = (loc.title || '').toLowerCase();
+      const lowerHindi = (loc.hindiTitle || '').toLowerCase();
+
+      // Detect specific landmark types
+      const isHospital =
+        lowerId.includes('health') ||
+        lowerId.includes('hospital') ||
+        lowerTitle.includes('health') ||
+        lowerTitle.includes('hospital') ||
+        lowerTitle.includes('clinic') ||
+        lowerHindi.includes('अस्पताल') ||
+        lowerHindi.includes('चिकित्सा');
+
+      const isBankAtm =
+        lowerId.includes('bank') ||
+        lowerId.includes('atm') ||
+        lowerTitle.includes('bank') ||
+        lowerTitle.includes('atm') ||
+        lowerHindi.includes('बैंक');
+
+      const isAuditorium =
+        lowerId.includes('auditorium') ||
+        lowerTitle.includes('auditorium') ||
+        lowerHindi.includes('सभागार') ||
+        lowerTitle.includes('hall');
+
       let badgeBg = 'bg-blue-600';
       let categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>`;
 
@@ -284,32 +346,62 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       } else if (isStartPoint) {
         badgeBg = 'bg-emerald-600';
         categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>`;
+      } else if (isHospital) {
+        // Medical / Health Center: Bold Medical Cross
+        badgeBg = 'bg-red-600';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" d="M12 4v16m-8-8h16"/></svg>`;
+      } else if (isBankAtm) {
+        // Banking / ATM
+        badgeBg = 'bg-emerald-700';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 10h20M7 15h2"/></svg>`;
+      } else if (isAuditorium) {
+        // Auditorium / Theatre Hall
+        badgeBg = 'bg-purple-700';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>`;
+      } else if (loc.category === 'gate') {
+        // Gate / Entrance: Distinctive Campus Archway Gate
+        badgeBg = 'bg-sky-600';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-8a3 3 0 016 0v8M9 9h.01M15 9h.01"/></svg>`;
       } else if (loc.category === 'department') {
+        // Academic Department: Graduation Cap
         badgeBg = 'bg-indigo-600';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14v7"/></svg>`;
       } else if (loc.category === 'admin') {
+        // Administration: Classical Columns
         badgeBg = 'bg-slate-700';
-      } else if (loc.category === 'faculty') {
-        badgeBg = 'bg-violet-600';
-        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
-      } else if (loc.category === 'lab') {
-        badgeBg = 'bg-teal-600';
-        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>`;
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 21h16M4 7h16M3 7l9-4 9 4M7 7v10M12 7v10M17 7v10M5 21h14"/></svg>`;
       } else if (loc.category === 'library') {
-        badgeBg = 'bg-emerald-600';
+        // Library: Open Book
+        badgeBg = 'bg-teal-600';
         categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`;
       } else if (loc.category === 'canteen') {
-        badgeBg = 'bg-rose-500';
-        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V4a1 1 0 00-1-1H7a1 1 0 00-1 1v4m6 0H6m6 0h6a1 1 0 001-1V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v4"/></svg>`;
+        // Canteen / Cafeteria: Coffee / Dining
+        badgeBg = 'bg-amber-500';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>`;
       } else if (loc.category === 'sports') {
+        // Sports / Stadium / Gym: Championship Trophy
         badgeBg = 'bg-lime-600';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4a5 5 0 005 5h4a5 5 0 005-5V3M3 5h2m14 0h2M9 21h6M12 17v4M8 12a4 4 0 008 0"/></svg>`;
       } else if (loc.category === 'hostel') {
-        badgeBg = 'bg-rose-600';
-      } else if (loc.category === 'gate') {
-        badgeBg = 'bg-sky-600';
-      } else if (loc.category === 'facility') {
+        // Hostel: Residential Bed / Dorm
+        badgeBg = 'bg-rose-500';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>`;
+      } else if (loc.category === 'lab') {
+        // Lab: Chemistry Beaker / Flask
         badgeBg = 'bg-cyan-600';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>`;
+      } else if (loc.category === 'faculty') {
+        // Faculty: Teacher / Cabin
+        badgeBg = 'bg-violet-600';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
+      } else if (loc.category === 'facility') {
+        // Facility: Campus Utilities
+        badgeBg = 'bg-sky-700';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
       } else if (loc.category === 'custom_student') {
+        // Custom Student Place: Sparkle Star
         badgeBg = 'bg-purple-600';
+        categoryIconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>`;
       }
 
       const isDraggable = !!(isDragUnlocked || isTeacherDragUnlocked);
@@ -319,14 +411,12 @@ export const CampusMap: React.FC<CampusMapProps> = ({
          (loc.isCustom && loc.addedBy && loc.addedBy.includes(loggedInTeacher.name)))
       );
 
-      const markerRotationStyle = isLiveNavActive && isHeadingUpMode ? `transform: rotate(${currentBearing}deg);` : '';
-
       const customHtml = `
         <div id="marker-${loc.id}" class="group relative flex flex-col items-center ${
         isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       } transition-transform duration-200 ${
         isDestination ? 'scale-125 z-50' : isSelected ? 'scale-125 z-50' : 'hover:scale-110 z-10'
-      }" style="${markerRotationStyle}">
+      }">
           <div class="flex items-center justify-center ${isDestination ? 'w-9 h-9' : 'w-7 h-7 sm:w-8 sm:h-8'} rounded-full ${badgeBg} border-2 ${
         isDestination
           ? 'border-white ring-4 ring-rose-500/60 shadow-xl shadow-rose-950/80 animate-bounce'
@@ -519,23 +609,37 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     currentZoom,
   ]);
 
-  // Fit bounds helper to center and zoom in on the entire route
-  const handleFitRouteBounds = () => {
+  const hadRouteRef = useRef(false);
+  const lastNavTriggerTimeRef = useRef<number>(0);
+
+  // Fit bounds helper to center and zoom in on the entire route with optimal framing around navigation panel
+  const handleFitRouteBounds = useCallback((customPath?: [number, number][]) => {
     const map = mapInstanceRef.current;
-    if (!map || !navigationRoute || navigationRoute.path.length === 0) return;
+    const path = customPath || navigationRoute?.path;
+    if (!map || !path || path.length === 0) return;
     try {
-      const bounds = L.latLngBounds(navigationRoute.path);
-      map.fitBounds(bounds, {
-        paddingTopLeft: [40, 80],
-        paddingBottomRight: [40, 110],
-        maxZoom: 18,
-        animate: true,
-        duration: 0.9,
-      });
+      map.stop(); // Terminate any running animation cleanly
+      map.invalidateSize({ animate: false });
+      const bounds = L.latLngBounds(path);
+      if (bounds.isValid()) {
+        const isMobile = window.innerWidth < 768;
+        // Dynamic padding: ensures route and destination are 100% visible, not hidden behind navbar or floating navigation panel
+        const padTop = isMobile ? (isNavPanelMinimized ? 175 : 320) : 90;
+        const padLeft = isMobile ? 28 : (isNavPanelMinimized ? 380 : 450);
+        const padBottom = isMobile ? 95 : 70;
+        const padRight = isMobile ? 28 : 70;
+
+        map.flyToBounds(bounds, {
+          paddingTopLeft: [padLeft, padTop],
+          paddingBottomRight: [padRight, padBottom],
+          maxZoom: 17.5,
+          duration: 0.85,
+        });
+      }
     } catch (err) {
-      console.warn('fitBounds error:', err);
+      console.warn('flyToBounds error:', err);
     }
-  };
+  }, [navigationRoute, isNavPanelMinimized]);
 
   // Draw Navigation Polyline and Zoom into Route
   useEffect(() => {
@@ -552,6 +656,8 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     }
 
     if (navigationRoute && navigationRoute.path.length > 0) {
+      hadRouteRef.current = true;
+
       // Glow / Outline
       const outline = L.polyline(navigationRoute.path, {
         color: '#1e3a8a',
@@ -572,51 +678,99 @@ export const CampusMap: React.FC<CampusMapProps> = ({
         lineJoin: 'round',
       }).addTo(map);
       routeLayerRef.current = line;
+    } else {
+      // If a route was previously active and user canceled/cleared it, gracefully glide back to campus overview
+      if (hadRouteRef.current) {
+        hadRouteRef.current = false;
+        map.stop();
+        map.flyTo(CSJMU_CENTER, 16.0, { duration: 0.7 });
+      }
+    }
+  }, [navigationRoute]);
 
-      // Automatically zoom in on the route when calculated or route endpoints change
-      const routeKey = `${navigationRoute.fromLocation?.id || ''}->${navigationRoute.toLocation?.id || ''}`;
-      if (lastFittedRouteKeyRef.current !== routeKey) {
-        lastFittedRouteKeyRef.current = routeKey;
-        if (!isLiveNavActive) {
-          const bounds = L.latLngBounds(navigationRoute.path);
-          map.fitBounds(bounds, {
-            paddingTopLeft: [40, 80],
-            paddingBottomRight: [40, 110],
-            maxZoom: 18,
-            animate: true,
-            duration: 1.0,
+  // Guaranteed Zoom Focus on Destination whenever navigation starts (1st time, 2nd time, restart, cancel & restart, every time!)
+  useEffect(() => {
+    if (!navTriggerId) return;
+    const map = mapInstanceRef.current;
+    if (!map || isLiveNavActive) return;
+
+    lastNavTriggerTimeRef.current = Date.now();
+    setIsUserInteracting(false);
+
+    // Target coordinate: prioritize destination building coordinate, or route start/end
+    const targetCoord: [number, number] | null =
+      toLocation && Array.isArray(toLocation.coordinates) && toLocation.coordinates.length >= 2
+        ? toLocation.coordinates
+        : navigationRoute && navigationRoute.path && navigationRoute.path.length > 0
+        ? navigationRoute.path[navigationRoute.path.length - 1]
+        : null;
+
+    if (targetCoord) {
+      const lat = Number(targetCoord[0]);
+      const lng = Number(targetCoord[1]);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        try {
+          map.stop();
+          map.invalidateSize({ animate: false });
+          // Zoom in directly to destination building at close level (18.0) and stay there
+          map.flyTo([lat, lng], 18.0, {
+            duration: 0.85,
+            easeLinearity: 0.25,
           });
+        } catch (err) {
+          console.warn('Destination start zoom in error:', err);
         }
       }
-    } else {
-      lastFittedRouteKeyRef.current = null;
     }
-  }, [navigationRoute, isLiveNavActive]);
+  }, [navTriggerId, toLocation, isLiveNavActive]);
 
   // Determine current active coordinate for live navigation camera tracking
   const activeNavCoord = useMemo<[number, number]>(() => {
+    // 1. If navigation route exists, lock to exact walkway coordinates
+    if (navigationRoute) {
+      // If user has real GPS within 35 meters of this campus route, snap to nearest route point
+      if (userCoordinates && Array.isArray(userCoordinates) && userCoordinates.length >= 2) {
+        let minDist = Infinity;
+        let nearestPoint: [number, number] | null = null;
+        for (const pt of navigationRoute.path) {
+          const d = getDistanceMeters(userCoordinates, pt);
+          if (d < minDist) {
+            minDist = d;
+            nearestPoint = pt;
+          }
+        }
+        if (minDist <= 35 && nearestPoint) {
+          return nearestPoint;
+        }
+      }
+
+      // Otherwise, position the person at the exact coordinate of the active step
+      if (navigationRoute.steps && navigationRoute.steps[activeLiveNavStepIdx]) {
+        return navigationRoute.steps[activeLiveNavStepIdx].coordinates;
+      }
+      if (navigationRoute.path && navigationRoute.path.length > 0) {
+        return navigationRoute.path[0];
+      }
+    }
+
+    // 2. Default: user's GPS coordinate or campus center
     if (userCoordinates && Array.isArray(userCoordinates) && userCoordinates.length >= 2) {
       return userCoordinates;
     }
-    if (navigationRoute && navigationRoute.steps && navigationRoute.steps[activeLiveNavStepIdx]) {
-      return navigationRoute.steps[activeLiveNavStepIdx].coordinates;
-    }
-    if (navigationRoute && navigationRoute.path && navigationRoute.path.length > 0) {
-      return navigationRoute.path[0];
-    }
+
     return CSJMU_CENTER;
   }, [userCoordinates, navigationRoute, activeLiveNavStepIdx]);
 
-  // Compute direction / bearing along road or from device compass
+  // Compute direction / bearing along road towards destination (Zero wobble)
   const targetBearing = useMemo<number>(() => {
-    if (!isLiveNavActive || !navigationRoute) return 0;
-
-    // 1. If device GPS heading is available from movement (> 0)
-    if (userHeading !== null && userHeading !== undefined && !isNaN(userHeading) && userHeading >= 0) {
-      return userHeading;
+    if (!navigationRoute) {
+      if (userHeading !== null && userHeading !== undefined && !isNaN(userHeading) && userHeading >= 0) {
+        return userHeading;
+      }
+      return 0;
     }
 
-    // 2. Compute road heading towards the next point along the route path
+    // 1. Primary: Forward road heading towards the next point along route path
     if (navigationRoute.path && navigationRoute.path.length >= 2) {
       let closestIdx = 0;
       let minD = Infinity;
@@ -630,24 +784,29 @@ export const CampusMap: React.FC<CampusMapProps> = ({
 
       for (let i = closestIdx + 1; i < navigationRoute.path.length; i++) {
         const d = getDistanceMeters(activeNavCoord, navigationRoute.path[i]);
-        if (d >= 14) {
+        if (d >= 8) {
           return calculateBearing(activeNavCoord, navigationRoute.path[i]);
         }
       }
     }
 
-    // 3. Next step coordinate if available
-    const nextStep = navigationRoute.steps[activeLiveNavStepIdx + 1];
+    // 2. Next step coordinate if available
+    const nextStep = navigationRoute.steps && navigationRoute.steps[activeLiveNavStepIdx + 1];
     if (nextStep) {
       return calculateBearing(activeNavCoord, nextStep.coordinates);
     }
 
+    // 3. Straight line to destination
+    if (navigationRoute.toLocation) {
+      return calculateBearing(activeNavCoord, navigationRoute.toLocation.coordinates);
+    }
+
     return prevBearingRef.current || 0;
-  }, [isLiveNavActive, navigationRoute, userHeading, activeNavCoord, activeLiveNavStepIdx]);
+  }, [isLiveNavActive, navigationRoute, activeNavCoord, activeLiveNavStepIdx]);
 
   // Interpolate angle transitions using shortest angular distance
   useEffect(() => {
-    if (!isLiveNavActive) {
+    if (!isLiveNavActive && !navigationRoute) {
       setCurrentBearing(0);
       prevBearingRef.current = 0;
       return;
@@ -657,46 +816,84 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     let diff = (targetBearing - prev) % 360;
     if (diff < -180) diff += 360;
     if (diff > 180) diff -= 360;
+
+    // Deadband filtering: ignore small sensor noise/micro-fluctuations under 6.5 degrees
+    if (Math.abs(diff) < 6.5) {
+      return;
+    }
+
     const nextBearing = prev + diff;
     prevBearingRef.current = nextBearing;
     setCurrentBearing(nextBearing);
-  }, [targetBearing, isLiveNavActive]);
+  }, [targetBearing, isLiveNavActive, navigationRoute]);
 
-  // Live Navigation Google Maps Camera Tracking: High zoom (19.2) & move forward with direction
+  // Live Navigation Google Maps Camera Tracking: Smooth, lag-free pan at standard street zoom 18.0
+  const lastPannedCoordRef = useRef<[number, number] | null>(null);
+
+  // When live navigation starts (1st time, 2nd time, etc.), ALWAYS reset tracking and zoom in to 18.0 immediately!
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (isLiveNavActive) {
+      lastPannedCoordRef.current = null;
+      setIsUserInteracting(false);
+      try {
+        map.stop();
+        map.invalidateSize({ animate: false });
+        map.flyTo(activeNavCoord, 18.0, {
+          duration: 0.8,
+          easeLinearity: 0.25,
+        });
+      } catch (err) {
+        console.warn('Live nav entry flyTo error:', err);
+      }
+    } else {
+      lastPannedCoordRef.current = null;
+      setIsUserInteracting(false);
+    }
+  }, [isLiveNavActive]);
+
+  // Guaranteed Zoom Focus whenever user clicks Start Live Navigation button
+  useEffect(() => {
+    if (!liveNavTriggerId) return;
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    setIsUserInteracting(false);
+    lastPannedCoordRef.current = null;
+    try {
+      map.stop();
+      map.invalidateSize({ animate: false });
+      map.flyTo(activeNavCoord, 18.5, {
+        duration: 0.75,
+        easeLinearity: 0.25,
+      });
+    } catch (err) {
+      console.warn('Live navigation start zoom in error:', err);
+    }
+  }, [liveNavTriggerId, activeNavCoord]);
+
+  // Subsequent GPS tracking while in active Live Navigation
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !isLiveNavActive || isUserInteracting) return;
 
+    // GPS Micro-Jitter Filter: Only pan/update camera when user has actually moved more than 1.5 meters
+    if (lastPannedCoordRef.current && getDistanceMeters(lastPannedCoordRef.current, activeNavCoord) <= 1.5) {
+      return;
+    }
+    lastPannedCoordRef.current = activeNavCoord;
+
     try {
-      map.invalidateSize({ animate: false });
-
-      // In Heading-Up mode, offset camera forward along travel direction by 26m
-      // so user GPS arrow sits at ~65% Y from top, giving wide forward visibility right below live HUD!
-      const effectiveBearing = isHeadingUpMode ? currentBearing : 0;
-      const cameraCenter = isHeadingUpMode
-        ? getDestinationCoordinate(activeNavCoord, 26, effectiveBearing)
-        : activeNavCoord;
-
-      const targetZoom = 19.2;
-
-      if (map.getZoom() < 18.2) {
-        // Initial entry into live navigation: fly in smoothly to high zoom
-        map.flyTo(cameraCenter, targetZoom, {
-          duration: 1.0,
-          easeLinearity: 0.25,
-        });
-      } else {
-        // Continuous live camera tracking as user moves
-        map.panTo(cameraCenter, {
-          animate: true,
-          duration: 0.6,
-          easeLinearity: 0.3,
-        });
-      }
+      map.panTo(activeNavCoord, {
+        animate: true,
+        duration: 0.4,
+        easeLinearity: 0.25,
+      });
     } catch (err) {
       console.warn('Live nav camera tracking error:', err);
     }
-  }, [isLiveNavActive, activeNavCoord, currentBearing, isHeadingUpMode, isUserInteracting]);
+  }, [isLiveNavActive, activeNavCoord, isUserInteracting]);
 
   // Restore overview when live navigation exits
   const prevIsLiveNavActiveRef = useRef<boolean>(false);
@@ -732,18 +929,15 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     setIsUserInteracting(false);
     if (!map) return;
     try {
-      const effectiveBearing = isHeadingUpMode ? currentBearing : 0;
-      const cameraCenter = isHeadingUpMode
-        ? getDestinationCoordinate(activeNavCoord, 26, effectiveBearing)
-        : activeNavCoord;
-      map.flyTo(cameraCenter, 19.2, {
-        duration: 0.7,
+      map.stop();
+      map.flyTo(activeNavCoord, 18.0, {
+        duration: 0.6,
         easeLinearity: 0.25,
       });
     } catch {}
   };
 
-  // Center on Selected Location
+  // Center on Selected Location (Guaranteed zoom in to 18.0)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !selectedLocation) return;
@@ -753,16 +947,17 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
 
     try {
+      map.stop();
       map.invalidateSize({ animate: false });
-      if (!navigationRoute && !isLiveNavActive) {
-        map.flyTo([lat, lng], 17.5, { duration: 1.2 });
+      if (!isLiveNavActive) {
+        map.flyTo([lat, lng], 18.0, { duration: 0.85, easeLinearity: 0.25 });
       }
     } catch (err) {
       console.warn('Map flyTo selectedLocation failed:', err);
     }
-  }, [selectedLocation, navigationRoute, isLiveNavActive]);
+  }, [selectedLocation, isLiveNavActive]);
 
-  // Smooth Focus on specific coordinates
+  // Smooth Focus on specific coordinates (Unconditionally honors coordinates, 1st time, 2nd time, or any time)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !focusCoordinates || isLiveNavActive) return;
@@ -772,8 +967,9 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
 
     try {
+      map.stop();
       map.invalidateSize({ animate: false });
-      map.flyTo([lat, lng], 18, { duration: 1.0 });
+      map.flyTo([lat, lng], 18.0, { duration: 0.85, easeLinearity: 0.25 });
     } catch (err) {
       console.warn('Map flyTo focusCoordinates failed:', err);
     }
@@ -793,11 +989,24 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       userAccuracyCircleRef.current = null;
     }
 
-    const markerPos = userCoordinates || (isLiveNavActive ? activeNavCoord : null);
-    const isNavMode = !!isLiveNavActive;
+    const isNavMode = !!isLiveNavActive || (navigationRoute && navigationRoute.path && navigationRoute.path.length > 0);
+    // When in navigation mode, strictly lock to exact route walkway coordinate (activeNavCoord)
+    const markerPos = isNavMode ? activeNavCoord : userCoordinates;
 
-    if (markerPos) {
-      if (!isNavMode) {
+    if (!markerPos) {
+      if (userMarkerRef.current) {
+        map.removeLayer(userMarkerRef.current);
+        userMarkerRef.current = null;
+      }
+      if (userAccuracyCircleRef.current) {
+        map.removeLayer(userAccuracyCircleRef.current);
+        userAccuracyCircleRef.current = null;
+      }
+      return;
+    }
+
+    if (!isNavMode) {
+      if (!userAccuracyCircleRef.current) {
         const accuracyCircle = L.circle(markerPos, {
           radius: 20,
           color: '#3b82f6',
@@ -806,63 +1015,119 @@ export const CampusMap: React.FC<CampusMapProps> = ({
           weight: 1,
         }).addTo(map);
         userAccuracyCircleRef.current = accuracyCircle;
+      } else {
+        userAccuracyCircleRef.current.setLatLng(markerPos);
       }
+    } else if (userAccuracyCircleRef.current) {
+      map.removeLayer(userAccuracyCircleRef.current);
+      userAccuracyCircleRef.current = null;
+    }
 
-      const arrowAngle = isHeadingUpMode ? 0 : currentBearing;
+    const arrowAngle = currentBearing;
 
-      const userIcon = L.divIcon({
-        className: isNavMode ? 'google-maps-nav-chevron-marker' : 'user-gps-marker',
-        html: isNavMode
-          ? `
-            <div class="relative flex items-center justify-center w-14 h-14 pointer-events-none">
+    // Calculate live distance remaining & estimated travel time in navigation mode
+    let remainingDistanceMeters = 0;
+    if (navigationRoute && navigationRoute.path && navigationRoute.path.length > 0) {
+      let closestIdx = 0;
+      let minD = Infinity;
+      for (let i = 0; i < navigationRoute.path.length; i++) {
+        const d = getDistanceMeters(markerPos, navigationRoute.path[i]);
+        if (d < minD) {
+          minD = d;
+          closestIdx = i;
+        }
+      }
+      remainingDistanceMeters = minD;
+      for (let i = closestIdx; i < navigationRoute.path.length - 1; i++) {
+        remainingDistanceMeters += getDistanceMeters(navigationRoute.path[i], navigationRoute.path[i + 1]);
+      }
+    } else if (navigationRoute?.totalDistanceMeters) {
+      remainingDistanceMeters = navigationRoute.totalDistanceMeters;
+    }
+
+    const remainingMinutes = Math.max(1, Math.ceil(remainingDistanceMeters / 72));
+    const remainingTimeStr =
+      language === 'hi'
+        ? `${remainingMinutes} मि.`
+        : `${remainingMinutes} min`;
+
+    const remainingDistStr =
+      remainingDistanceMeters >= 1000
+        ? `${(remainingDistanceMeters / 1000).toFixed(1)} km`
+        : `${Math.round(remainingDistanceMeters)} ${language === 'hi' ? 'मी.' : 'm'}`;
+
+    const userIcon = L.divIcon({
+      className: isNavMode ? 'google-maps-nav-chevron-marker' : 'user-gps-marker',
+      html: isNavMode
+        ? `
+          <div class="relative flex flex-col items-center justify-center pointer-events-none select-none">
+            <!-- 3D Directional Chevron Disc & Forward Spotlight -->
+            <div class="relative flex items-center justify-center w-14 h-14">
               <!-- Directional forward spotlight cone projecting onto road -->
-              <div class="absolute -top-7 w-16 h-16 bg-gradient-to-t from-blue-500/35 to-transparent rounded-t-full pointer-events-none ${
-                isHeadingUpMode ? '' : 'transition-transform duration-300'
-              }" style="${isHeadingUpMode ? '' : `transform: rotate(${arrowAngle}deg); transform-origin: center bottom;`}"></div>
+              <div class="absolute -top-7 w-16 h-16 bg-gradient-to-t from-blue-500/35 to-transparent rounded-t-full pointer-events-none transition-transform duration-300" style="transform: rotate(${arrowAngle}deg); transform-origin: center bottom;"></div>
               <!-- Pulse circle -->
               <div class="absolute w-12 h-12 rounded-full bg-blue-500/20 animate-ping pointer-events-none"></div>
               <!-- 3D Navigation Chevron Disc -->
-              <div class="relative w-10 h-10 rounded-full bg-white shadow-2xl border-2 border-white ring-4 ring-blue-500/40 flex items-center justify-center ${
-                isHeadingUpMode ? '' : 'transition-transform duration-300'
-              }" style="${isHeadingUpMode ? '' : `transform: rotate(${arrowAngle}deg);`}">
+              <div class="relative w-10 h-10 rounded-full bg-white shadow-2xl border-2 border-white ring-4 ring-blue-500/40 flex items-center justify-center transition-transform duration-300" style="transform: rotate(${arrowAngle}deg);">
                 <svg class="w-6 h-6 text-blue-600 drop-shadow-sm fill-current" viewBox="0 0 24 24">
                   <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z"/>
                 </svg>
               </div>
             </div>
-          `
-          : `
-            <div class="relative flex items-center justify-center w-8 h-8">
-              <div class="absolute w-8 h-8 rounded-full bg-blue-500/30 animate-ping"></div>
-              <div class="absolute w-6 h-6 rounded-full bg-sky-400/50 animate-pulse"></div>
-              <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-lg shadow-blue-500/80 flex items-center justify-center">
-                <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
-              </div>
-            </div>
-          `,
-        iconSize: isNavMode ? [56, 56] : [32, 32],
-        iconAnchor: isNavMode ? [28, 28] : [16, 16],
-      });
 
+            <!-- Live Distance Remaining & ETA Label Pill (Remains Upright) -->
+            ${
+              isLiveNavActive
+                ? `
+                  <div class="mt-1 px-2.5 py-0.5 bg-slate-900/90 backdrop-blur-md text-white rounded-full shadow-2xl border border-white/25 flex items-center gap-1.5 whitespace-nowrap pointer-events-none text-[10px] font-black tracking-tight animate-fade-in">
+                    <span class="text-emerald-400 font-extrabold flex items-center gap-0.5">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      ${remainingTimeStr}
+                    </span>
+                    <span class="text-slate-400 text-[8px]">•</span>
+                    <span class="text-slate-100">${remainingDistStr}</span>
+                  </div>
+                `
+                : ''
+            }
+          </div>
+        `
+        : `
+          <div class="relative flex items-center justify-center w-8 h-8">
+            <div class="absolute w-8 h-8 rounded-full bg-blue-500/30 animate-ping"></div>
+            <div class="absolute w-6 h-6 rounded-full bg-sky-400/50 animate-pulse"></div>
+            <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-lg shadow-blue-500/80 flex items-center justify-center">
+              <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+            </div>
+          </div>
+        `,
+      iconSize: isNavMode ? [100, isLiveNavActive ? 86 : 56] : [32, 32],
+      iconAnchor: isNavMode ? [50, 28] : [16, 16],
+    });
+
+    const tooltipText = isNavMode
+      ? language === 'hi'
+        ? '🧭 लाइव नेविगेशन'
+        : '🧭 Live Navigation'
+      : language === 'hi'
+      ? '📍 आपकी लोकेशन (GPS)'
+      : '📍 Your GPS Location';
+
+    if (!userMarkerRef.current) {
       const userMarker = L.marker(markerPos, { icon: userIcon, zIndexOffset: 1200 })
-        .bindTooltip(
-          isNavMode
-            ? language === 'hi'
-              ? '🧭 लाइव नेविगेशन'
-              : '🧭 Live Navigation'
-            : language === 'hi'
-            ? '📍 आपकी लोकेशन (Live GPS)'
-            : '📍 Your Live GPS Location',
-          {
-            permanent: false,
-            direction: 'top',
-            className: 'native-maps-tooltip',
-          }
-        )
+        .bindTooltip(tooltipText, {
+          permanent: false,
+          direction: 'top',
+          className: 'native-maps-tooltip',
+        })
         .addTo(map);
       userMarkerRef.current = userMarker;
+    } else {
+      userMarkerRef.current.setLatLng(markerPos);
+      userMarkerRef.current.setIcon(userIcon);
+      userMarkerRef.current.setTooltipContent(tooltipText);
     }
-  }, [userCoordinates, activeNavCoord, isLiveNavActive, isHeadingUpMode, currentBearing, language]);
+  }, [userCoordinates, activeNavCoord, isLiveNavActive, navigationRoute, isHeadingUpMode, currentBearing, language]);
 
   // Recalculate Leaflet size whenever container changes, modals toggle, or picker closes.
   // This completely prevents the map from rendering blank/black tiles on phone screens or after adding markers.
@@ -977,19 +1242,6 @@ export const CampusMap: React.FC<CampusMapProps> = ({
         ref={mapContainerRef}
         data-zoom-tier="mid"
         className="w-full h-full z-0 bg-[#E8ECEF]"
-        style={
-          isLiveNavActive && isHeadingUpMode
-            ? {
-                transform: `scale(1.48) rotate(${-currentBearing}deg)`,
-                transformOrigin: '50% 50%',
-                transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
-              }
-            : {
-                transform: 'scale(1) rotate(0deg)',
-                transformOrigin: '50% 50%',
-                transition: 'transform 0.5s ease-out',
-              }
-        }
       />
 
       {/* Google Maps Compass Button (Heading Up vs North Up) */}
@@ -1015,9 +1267,9 @@ export const CampusMap: React.FC<CampusMapProps> = ({
           >
             {/* 3D Compass Needle Disc */}
             <div
-              className="w-7 h-7 relative flex items-center justify-center transition-transform duration-500 ease-out"
+              className="w-7 h-7 relative flex items-center justify-center transition-transform duration-300 ease-out"
               style={{
-                transform: `rotate(${isHeadingUpMode ? currentBearing : 0}deg)`,
+                transform: `rotate(${isHeadingUpMode ? -currentBearing : 0}deg)`,
               }}
             >
               {/* Red North arrow tip */}
@@ -1146,7 +1398,7 @@ export const CampusMap: React.FC<CampusMapProps> = ({
         <button
           id="btn-zoom-to-route"
           type="button"
-          onClick={handleFitRouteBounds}
+          onClick={() => handleFitRouteBounds()}
           className="absolute right-3.5 bottom-24 z-20 px-3.5 py-2 bg-white hover:bg-slate-50 active:scale-95 text-blue-600 border border-slate-200 rounded-2xl shadow-lg flex items-center gap-1.5 text-xs font-bold transition cursor-pointer pointer-events-auto"
           title={language === 'hi' ? 'पूरा रूट स्क्रीन पर देखें' : 'Fit Entire Route on Screen'}
         >

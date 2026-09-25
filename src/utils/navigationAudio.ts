@@ -109,29 +109,54 @@ class NavigationAudioManager {
 
   /**
    * Plays voice strictly through ONE engine:
-   * First tries Google TTS Audio Stream. If it completely fails, only then falls back to SpeechSynthesis.
+   * First checks if online. If online, tries Google TTS Audio Stream with a strict 1200ms timeout.
+   * If weak internet causes a timeout or error, instantly falls back to local SpeechSynthesis.
    * Both engines will NEVER play at the same time.
    */
   private playSingleVoice(text: string, lang: 'hi' | 'en', reqId: number): void {
     if (this.speechRequestId !== reqId) return;
+
+    // If completely offline, skip network calls entirely and speak instantly via device TTS
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      this.speakViaSpeechSynthesis(text, lang, reqId);
+      return;
+    }
 
     const serverTtsUrl = `/api/tts?lang=${lang}&text=${encodeURIComponent(text)}`;
     const googleDirectTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(text)}`;
 
     let hasStartedAudio = false;
     let fallbackExecuted = false;
+    let networkTimeoutTimer: any = null;
 
     const executeFallback = () => {
+      if (networkTimeoutTimer) {
+        clearTimeout(networkTimeoutTimer);
+        networkTimeoutTimer = null;
+      }
       if (fallbackExecuted || hasStartedAudio || this.speechRequestId !== reqId) return;
       fallbackExecuted = true;
       if (this.currentAudioElement) {
         try {
-          this.currentAudioElement.pause();
-          this.currentAudioElement = null;
+          const el = this.currentAudioElement;
+          el.onplay = null;
+          el.onerror = null;
+          el.onended = null;
+          el.pause();
+          el.removeAttribute('src');
+          el.load();
         } catch (e) {}
+        this.currentAudioElement = null;
       }
       this.speakViaSpeechSynthesis(text, lang, reqId);
     };
+
+    // Strict 1200ms fast timeout: if weak network hangs or delays buffering, fall back immediately
+    networkTimeoutTimer = setTimeout(() => {
+      if (!hasStartedAudio && this.speechRequestId === reqId) {
+        executeFallback();
+      }
+    }, 1200);
 
     try {
       const audio = new Audio();
@@ -140,6 +165,10 @@ class NavigationAudioManager {
       this.currentAudioElement = audio;
 
       audio.onplay = () => {
+        if (networkTimeoutTimer) {
+          clearTimeout(networkTimeoutTimer);
+          networkTimeoutTimer = null;
+        }
         if (this.speechRequestId !== reqId) {
           audio.pause();
           return;
@@ -147,13 +176,28 @@ class NavigationAudioManager {
         hasStartedAudio = true;
       };
 
+      audio.oncanplay = () => {
+        if (networkTimeoutTimer) {
+          clearTimeout(networkTimeoutTimer);
+          networkTimeoutTimer = null;
+        }
+      };
+
       audio.onended = () => {
+        if (networkTimeoutTimer) {
+          clearTimeout(networkTimeoutTimer);
+          networkTimeoutTimer = null;
+        }
         if (this.currentAudioElement === audio) {
           this.currentAudioElement = null;
         }
       };
 
       audio.onerror = () => {
+        if (networkTimeoutTimer) {
+          clearTimeout(networkTimeoutTimer);
+          networkTimeoutTimer = null;
+        }
         if (this.speechRequestId !== reqId || hasStartedAudio) return;
 
         // If local proxy failed, try direct Google Translate TTS URL once
@@ -179,6 +223,10 @@ class NavigationAudioManager {
               audio.pause();
             } else {
               hasStartedAudio = true;
+              if (networkTimeoutTimer) {
+                clearTimeout(networkTimeoutTimer);
+                networkTimeoutTimer = null;
+              }
             }
           })
           .catch((err: any) => {

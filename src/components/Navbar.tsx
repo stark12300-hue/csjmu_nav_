@@ -113,11 +113,38 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const desktopDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
 
   const t = TRANSLATIONS[language];
+
+  // Global desktop keyboard shortcut: Pressing Ctrl+K, Cmd+K, or "/" instantly focuses search
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Check for Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setIsSearchOpen(true);
+        return;
+      }
+      // Check for "/" key when not currently focused in an input/textarea
+      if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setIsSearchOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   // Perform Instant Smart Search with typo assumption & keyword fuzzy matching
   const searchResponse = useMemo(() => {
@@ -126,17 +153,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const searchResults = searchResponse.results;
 
-  // Handle outside click to close search dropdown
+  // Handle outside click to close search dropdown with support for desktop & mobile
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchDropdownRef.current &&
-        !searchDropdownRef.current.contains(event.target as Node) &&
-        searchInputRef.current &&
-        !searchInputRef.current.contains(event.target as Node) &&
-        mobileSearchInputRef.current &&
-        !mobileSearchInputRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      const isInsideDesktop =
+        (desktopDropdownRef.current && desktopDropdownRef.current.contains(target)) ||
+        (searchInputRef.current && searchInputRef.current.contains(target));
+      const isInsideMobile =
+        (mobileDropdownRef.current && mobileDropdownRef.current.contains(target)) ||
+        (mobileSearchInputRef.current && mobileSearchInputRef.current.contains(target));
+
+      if (!isInsideDesktop && !isInsideMobile) {
         setIsSearchOpen(false);
       }
     };
@@ -277,34 +305,44 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setSelectedIndex(-1);
                 }}
                 onFocus={() => setIsSearchOpen(true)}
+                onClick={() => setIsSearchOpen(true)}
                 onKeyDown={handleKeyDown}
                 placeholder={
                   language === 'hi'
-                    ? 'खोजें (uiet, canteen, library, gate 1)...'
-                    : 'Search building, dept, canteen, library...'
+                    ? 'कैंपस में खोजें (Ctrl+K)...'
+                    : 'Search building, dept, canteen... (Ctrl+K)'
                 }
-                className="w-full bg-slate-100 hover:bg-slate-200/60 focus:bg-white border border-slate-200 focus:border-blue-500 rounded-full pl-9 pr-8 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                className="w-full bg-slate-100 hover:bg-slate-200/60 focus:bg-white border border-slate-200 focus:border-blue-500 rounded-full pl-9 pr-14 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all font-medium"
               />
-              {searchQuery && (
-                <button
-                  id="btn-clear-search"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setSelectedIndex(-1);
-                  }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full ios-press"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                {searchQuery ? (
+                  <button
+                    id="btn-clear-search"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSearchQuery('');
+                      setSelectedIndex(-1);
+                      searchInputRef.current?.focus();
+                    }}
+                    className="text-slate-400 hover:text-slate-600 p-0.5 rounded-full ios-press pointer-events-auto cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 bg-white border border-slate-200 rounded shadow-2xs font-mono">
+                    Ctrl K
+                  </kbd>
+                )}
+              </div>
             </div>
 
             {/* Desktop Autocomplete Dropdown (Crisp Clean White) */}
             {isSearchOpen && (
               <div
-                ref={searchDropdownRef}
+                ref={desktopDropdownRef}
                 id="search-autocomplete-dropdown"
-                className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden z-50 max-h-96 overflow-y-auto divide-y divide-slate-100 text-xs text-slate-800"
+                className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden z-[100] max-h-96 overflow-y-auto divide-y divide-slate-100 text-xs text-slate-800"
               >
                 {/* Typo Correction Banner */}
                 {searchResponse.hasTypoCorrection && searchResponse.correctedQuery && (
@@ -334,6 +372,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           key={`${item.type}-${item.id}`}
                           id={`search-item-${item.id}`}
                           onClick={() => handleSelectItem(item)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectItem(item);
+                          }}
                           onMouseEnter={() => setSelectedIndex(idx)}
                           className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between gap-2.5 cursor-pointer transition ${
                             isSelected ? 'bg-blue-50 text-blue-950' : 'hover:bg-slate-50 text-slate-800'
@@ -365,6 +407,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <button
                               type="button"
                               onClick={(e) => handleStartNav(e, item)}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                handleStartNav(e, item);
+                              }}
                               title={language === 'hi' ? 'यहाँ के लिए रास्ता शुरू करें' : 'Start Navigation'}
                               className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full text-[10px] flex items-center gap-1 shadow-sm transition active:scale-95 ios-press cursor-pointer"
                             >
@@ -406,6 +453,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                           type="button"
                           onClick={() => {
                             setSearchQuery(qs.query);
+                            setIsSearchOpen(true);
+                            searchInputRef.current?.focus();
+                          }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSearchQuery(qs.query);
+                            setIsSearchOpen(true);
                             searchInputRef.current?.focus();
                           }}
                           className="group px-3 py-1.5 bg-white hover:bg-blue-600 active:bg-blue-700 text-slate-700 hover:text-white border border-slate-200 hover:border-blue-600 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all ios-press cursor-pointer"
@@ -584,7 +638,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Mobile Autocomplete Dropdown */}
           {isSearchOpen && (
             <div
-              ref={searchDropdownRef}
+              ref={mobileDropdownRef}
               className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto divide-y divide-slate-100 text-xs text-slate-800"
             >
               {/* Typo Correction notice */}

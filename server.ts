@@ -2759,18 +2759,6 @@ app.get("/api/admin/cleanup-status", (req, res) => {
   });
 });
 
-// Database Health & Cloud SQL Status
-app.get("/api/db/health", async (req, res) => {
-  try {
-    const { getDbEvents } = await import("./src/db/queries.ts");
-    const events = await getDbEvents();
-    res.json({ status: "connected", database: "Cloud SQL PostgreSQL", eventCount: events.length });
-  } catch (error: any) {
-    res.status(500).json({ status: "error", error: error.message });
-  }
-});
-
-
 // Dedicated APK download endpoint (serves binary APK with proper MIME type & download headers)
 app.get(["/csjmu_nav.apk", "/api/app/download-apk"], (req, res) => {
   if (apkSettings.customDownloadUrl && !req.query.local) {

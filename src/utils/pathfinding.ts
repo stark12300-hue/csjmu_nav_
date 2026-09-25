@@ -13,7 +13,7 @@ export function getDistanceMeters(coord1: [number, number], coord2: [number, num
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
+  return R * c;
 }
 
 // Calculate compass bearing in degrees (0 - 360) from start coordinate to end coordinate

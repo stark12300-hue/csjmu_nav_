@@ -67,10 +67,23 @@ function syncLocalTeacherAccounts(accounts: TeacherAccount[]): void {
 }
 
 async function loadFirestoreTeachers(): Promise<TeacherAccount[]> {
-  const accounts = await getTeachersFromFirestore();
-  const filtered = accounts.filter((a) => a && !isDemoTeacher(a));
-  syncLocalTeacherAccounts(filtered);
-  return filtered;
+  // Firestore is authoritative only when the read succeeds. A failed/empty
+  // read must never wipe the browser's pending teacher requests.
+  try {
+    const accounts = await getTeachersFromFirestore();
+    const filtered = accounts.filter((a) => a && !isDemoTeacher(a));
+
+    // Only mirror a successful Firestore snapshot into local cache.
+    // If Firestore is temporarily unavailable, preserve the existing cache.
+    if (accounts.length > 0) {
+      syncLocalTeacherAccounts(filtered);
+    }
+
+    return filtered;
+  } catch (e) {
+    console.warn('Unable to load Firestore teacher accounts; preserving local cache:', e);
+    return [];
+  }
 }
 
 export async function getRemoteTeacherAccounts(): Promise<TeacherAccount[]> {

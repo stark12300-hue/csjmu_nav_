@@ -1272,20 +1272,48 @@ export function App() {
   };
 
   const handleUpdateEvent = async (updatedEvent: CampusEvent) => {
+    // Update the UI immediately, then persist the complete edited event to
+    // Firestore/cloud. Do not silently report success when the cloud update
+    // fails, otherwise the next sync can restore the old event information.
     const updated = updateStoredEvent(updatedEvent);
     setEvents(updated);
     triggerAutoGitHubSync();
+
     try {
       const res = await updateRemoteEvent(updatedEvent.id, updatedEvent);
-      if (res.success && res.events) {
-        setEvents(res.events);
+
+      if (res.success) {
+        if (res.events) {
+          setEvents(res.events);
+        } else {
+          // Keep the edited object visible if the remote endpoint did not
+          // return the complete event list.
+          setEvents(getStoredEvents());
+        }
+
+        showToast(
+          language === 'hi'
+            ? '✅ इवेंट की जानकारी क्लाउड पर अपडेट हो गई!'
+            : '✅ Event information updated on the cloud!'
+        );
+      } else {
+        console.warn('Event edit cloud update failed:', res.message);
+        showToast(
+          language === 'hi'
+            ? `⚠️ इवेंट अपडेट नहीं हुआ: ${res.message || 'Firestore permission/server error'}`
+            : `⚠️ Event update failed: ${res.message || 'Firestore permission/server error'}`,
+          6000
+        );
       }
-    } catch (e) {}
-    showToast(
-      language === 'hi'
-        ? 'इवेंट जानकारी अपडेट हो गई!'
-        : 'Event details updated!'
-    );
+    } catch (e: any) {
+      console.warn('Event edit cloud update error:', e);
+      showToast(
+        language === 'hi'
+          ? `⚠️ इवेंट अपडेट नहीं हुआ: ${e?.message || 'Cloud error'}`
+          : `⚠️ Event update failed: ${e?.message || 'Cloud error'}`,
+        6000
+      );
+    }
   };
 
   const handleDeleteEvent = async (eventId: string) => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { subscribeTeachersFromFirestore } from '../../services/firebase';
 import {
   Users,
   ShieldCheck,
@@ -198,10 +199,22 @@ export const AdminTeacherManager: React.FC<AdminTeacherManagerProps> = ({
     deleteTeacherAccount('teacher-rachna-verma');
 
     fetchTeachers();
+
+    // Real-time Firestore listener: new teacher signups appear in Admin
+    // immediately, without waiting for the polling interval.
+    const unsubscribe = subscribeTeachersFromFirestore((remoteTeachers) => {
+      const filtered = remoteTeachers.filter((t) => !isDemoTeacher(t));
+      if (filtered.length > 0) {
+        setTeachers(filtered);
+      }
+    });
+
     const timer = window.setInterval(() => {
       fetchTeachers(true);
     }, 4000);
+
     return () => {
+      unsubscribe();
       window.clearInterval(timer);
     };
   }, []);

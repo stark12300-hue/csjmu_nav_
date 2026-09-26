@@ -564,8 +564,9 @@ export async function checkAdminPasswordAsync(password: string): Promise<{
   let isLocallyValid = isLocalPinValid(trimmed);
   try {
     const remotePinHash = await getAdminPinHashFromFirestore();
-    if (remotePinHash) {
-      isLocallyValid = remotePinHash === hashAdminSecret(trimmed);
+    if (remotePinHash && remotePinHash
+     === hashAdminSecret(trimmed)) {
+        isLocallyValid =true;
     }
   } catch {}
 

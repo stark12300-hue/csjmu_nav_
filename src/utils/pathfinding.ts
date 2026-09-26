@@ -68,11 +68,16 @@ export function findNearestNode(coord: [number, number]): RouteNode {
   return nearest;
 }
 
-// Check if coordinate is physically inside or adjacent to CSJMU Campus road network (within 120m of any campus node)
+// Check if coordinate is physically inside or adjacent to CSJMU Campus (within campus bounds or adjacent road network)
 export function isCoordinateOnCampus(coord: [number, number]): boolean {
   if (!coord || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return false;
+  const [lat, lng] = coord;
+  // Bounding box of CSJM University Kanpur campus with reasonable boundary margin
+  if (lat >= 26.4915 && lat <= 26.5115 && lng >= 80.2580 && lng <= 80.2760) {
+    return true;
+  }
   for (const node of CAMPUS_NODES) {
-    if (getDistanceMeters(coord, node.coordinates) <= 120) {
+    if (getDistanceMeters(coord, node.coordinates) <= 350) {
       return true;
     }
   }
@@ -136,11 +141,11 @@ export function getNodeForLocation(location: CampusLocation): RouteNode {
     'loc-gate-2': 'node-gate-2',
     'loc-gate-3': 'node-gate-3',
     'loc-admin': 'node-admin-front',
-    'loc-ssc-cell': 'node-admin-front',
+    'loc-ssc-cell': 'node-ssc-cell',
     'loc-library': 'node-library-front',
     'loc-fountain': 'node-fountain',
     'loc-canteen': 'node-canteen-hub',
-    'loc-auditorium': 'node-auditorium-front',
+    'loc-auditorium': 'node-auditorium-main',
     'loc-uiet-1': 'node-uiet-junc-1',
     'loc-uiet-2': 'node-uiet-junc-2',
     'loc-uiet-3': 'node-uiet-junc-3',
@@ -156,6 +161,7 @@ export function getNodeForLocation(location: CampusLocation): RouteNode {
     'loc-stadium': 'node-stadium-north',
     'loc-hostel-shivaji': 'node-hostel-shivaji',
     'loc-hostel-ganga': 'node-hostel-ganga',
+    'loc-hostel-ambedkar': 'node-hostel-ambedkar',
     'loc-bank': 'node-bank-junction',
     'loc-guest-house': 'node-guest-house',
     'loc-english': 'node-english',
@@ -164,16 +170,19 @@ export function getNodeForLocation(location: CampusLocation): RouteNode {
     'loc-university-school': 'node-university-school',
     'loc-evaluation-center': 'node-evaluation-center',
     'loc-education': 'node-education',
-    'loc-hotel-management': 'node-hotel-management'
+    'loc-hotel-management': 'node-hotel-management',
+    'loc-botanical-garden': 'node-botanical-garden',
+    'loc-fine-arts': 'node-fine-arts',
+    'loc-agriculture': 'node-agriculture',
+    'loc-nss-ncc': 'node-nss-ncc'
   };
 
   const nodeId = directMapping[location.id];
   if (nodeId) {
     const found = CAMPUS_NODES.find((n) => n.id === nodeId);
     if (found) {
-      // Check if location was moved significantly (> 80 meters) from standard node
       const dist = getDistanceMeters(location.coordinates, found.coordinates);
-      if (dist < 100) {
+      if (dist < 200) {
         return found;
       }
     }
@@ -216,14 +225,14 @@ export function calculateCampusRoute(
   const startNode = getNodeForLocation(fromLocation);
   const targetNode = getNodeForLocation(toLocation);
 
-  // If start point or destination is off-campus (> 120m from any campus node),
-  // NEVER invent an aerial direct line cutting across town and buildings!
+  // If start point or destination is completely off-campus (> 600m away from campus network),
+  // return null so road routing or gate-directed entrance routing can take over
   const distToStartNode = getDistanceMeters(fromLocation.coordinates, startNode.coordinates);
-  if (distToStartNode > 120) {
+  if (distToStartNode > 600 && !isCoordinateOnCampus(fromLocation.coordinates)) {
     return null;
   }
   const distToTargetNode = getDistanceMeters(toLocation.coordinates, targetNode.coordinates);
-  if (distToTargetNode > 120) {
+  if (distToTargetNode > 600 && !isCoordinateOnCampus(toLocation.coordinates)) {
     return null;
   }
 

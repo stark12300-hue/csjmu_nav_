@@ -497,24 +497,43 @@ export function App() {
     let lastHeadingTime = 0;
 
     let lastCoords: [number, number] | null = null;
+    let lastCoordTime = 0;
 
     const handlePositionUpdate = (pos: GeolocationPosition) => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy;
       if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
         return;
       }
-      const newCoords: [number, number] = [lat, lng];
 
-      // GPS Micro-Jitter Filter: Only updates the map when the user has actually moved more than 1.5 meters
-      // (so the phone doesn't heat up or lag while standing still). Always uses live GPS coordinates.
+      // Reject weak GPS / inaccurate cellular tower triangulation (>150m) that teleports user away
+      if (typeof accuracy === 'number' && accuracy > 150 && lastCoords !== null) {
+        return;
+      }
+
+      const newCoords: [number, number] = [lat, lng];
+      const now = Date.now();
+
+      // GPS Micro-Jitter & Wild Teleport Filter:
+      // Discard unrealistic GPS jumps (>80m teleport at >25 m/s or ~90 km/h) to stop camera flying away into the air
       if (!lastCoords) {
         lastCoords = newCoords;
+        lastCoordTime = now;
         setUserCoordinates(newCoords);
       } else {
         const movedMeters = getDistanceMeters(lastCoords, newCoords);
+        const elapsedSec = Math.max(0.4, (now - lastCoordTime) / 1000);
+        const speedMps = movedMeters / elapsedSec;
+
+        if (movedMeters > 80 && speedMps > 25) {
+          // Unrealistic GPS jump - ignore to prevent map from being thrown away
+          return;
+        }
+
         if (movedMeters > 1.5) {
           lastCoords = newCoords;
+          lastCoordTime = now;
           setUserCoordinates(newCoords);
         }
       }
@@ -1575,7 +1594,18 @@ export function App() {
             }}
             onGetGpsLocation={() => {
               if (userCoordinates) {
-                setFocusCoordinates(userCoordinates);
+                const distFromCampus = getDistanceMeters(userCoordinates, CSJMU_CENTER);
+                if (distFromCampus <= 4500) {
+                  setFocusCoordinates(userCoordinates);
+                } else {
+                  showToast(
+                    language === 'hi'
+                      ? 'आप वर्तमान में सीएसजेएमयू परिसर से बाहर हैं। मैप परिसर पर केंद्रित रखा गया है।'
+                      : 'You are currently off-campus. Map is centered on CSJMU Campus.'
+                  );
+                  setSelectedLocation(null);
+                  setFocusCoordinates(CSJMU_CENTER);
+                }
               } else {
                 handleUseCurrentGpsAsStart();
               }

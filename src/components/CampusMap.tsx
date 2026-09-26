@@ -120,12 +120,15 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     const map = L.map(mapContainerRef.current, {
       center: CSJMU_CENTER,
       zoom: 16,
-      minZoom: 10,
+      minZoom: 14.6,
       maxZoom: 21,
       maxBounds: [
-        [26.2, 80.0],
-        [26.8, 80.6],
+        [26.470, 80.240],
+        [26.525, 80.320],
       ],
+      maxBoundsViscosity: 1.0,
+      inertia: false,
+      bounceAtZoomLimits: false,
       zoomControl: false,
       attributionControl: true,
     });
@@ -159,17 +162,29 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       });
     });
 
-    // Detect when user manually pans/drags map during live navigation
-    map.on('dragstart', () => {
+    // Detect when user manually interacts (pans, drags, zooms) with map during live navigation
+    const handleUserInteractionStart = () => {
       if (isLiveNavActiveRef.current) {
         setIsUserInteracting(true);
         if (userInteractionTimeoutRef.current) {
           window.clearTimeout(userInteractionTimeoutRef.current);
         }
-        // Auto-re-center after 12 seconds of inactivity
+        // Auto-re-center only after 18 seconds of absolute inactivity so user has full control
         userInteractionTimeoutRef.current = window.setTimeout(() => {
           setIsUserInteracting(false);
-        }, 12000);
+        }, 18000);
+      }
+    };
+
+    map.on('dragstart', handleUserInteractionStart);
+    map.on('movestart', (e: any) => {
+      if (e && e.originalEvent) {
+        handleUserInteractionStart();
+      }
+    });
+    map.on('zoomstart', (e: any) => {
+      if (e && e.originalEvent) {
+        handleUserInteractionStart();
       }
     });
 
@@ -709,17 +724,19 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     if (targetCoord) {
       const lat = Number(targetCoord[0]);
       const lng = Number(targetCoord[1]);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        try {
-          map.stop();
-          map.invalidateSize({ animate: false });
-          // Zoom in directly to destination building at close level (18.0) and stay there
-          map.flyTo([lat, lng], 18.0, {
-            duration: 0.85,
-            easeLinearity: 0.25,
-          });
-        } catch (err) {
-          console.warn('Destination start zoom in error:', err);
+      if (!isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng)) {
+        if (lat >= 26.46 && lat <= 26.54 && lng >= 80.23 && lng <= 80.33) {
+          try {
+            map.stop();
+            map.invalidateSize({ animate: false });
+            // Zoom in directly to destination building at close level (18.0) and stay there
+            map.flyTo([lat, lng], 18.0, {
+              duration: 0.85,
+              easeLinearity: 0.25,
+            });
+          } catch (err) {
+            console.warn('Destination start zoom in error:', err);
+          }
         }
       }
     }
@@ -947,6 +964,9 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     const lng = Number(selectedLocation.coordinates[1]);
     if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
 
+    // Safety boundary check: never fly to coordinates outside campus area
+    if (lat < 26.46 || lat > 26.54 || lng < 80.23 || lng > 80.33) return;
+
     try {
       map.stop();
       map.invalidateSize({ animate: false });
@@ -966,6 +986,9 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     const lat = Number(focusCoordinates[0]);
     const lng = Number(focusCoordinates[1]);
     if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
+
+    // Safety boundary check: never fly away from campus
+    if (lat < 26.46 || lat > 26.54 || lng < 80.23 || lng > 80.33) return;
 
     try {
       map.stop();

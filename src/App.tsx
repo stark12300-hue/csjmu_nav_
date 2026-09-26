@@ -1951,7 +1951,6 @@ export function App() {
         onOpenTeacherAuth={() => setIsTeacherAuthOpen(true)}
         onTeacherLogout={handleTeacherLogout}
         onTeacherLoginSuccess={handleTeacherLoginSuccess}
-        onSyncToFirestore={handleSyncAllToFirestore}
       />
 
       {/* Teacher Authentication (Signup with ID Photo & Login) Modal */}

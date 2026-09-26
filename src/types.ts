@@ -73,8 +73,8 @@ export interface CourseDepartmentMapping {
   floor: string;
   hodName: string;
   hodCabin: string;
-  recommendedGate: string;
-  recommendedGateId: string;
+  recommendedGate?: string;
+  recommendedGateId?: string;
   keyRooms: { name: string; room: string; floor: string }[];
   tags: string[];
   description?: string;

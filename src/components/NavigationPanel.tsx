@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Navigation,
-  ArrowUpDown,
   Footprints,
   Bike,
   Milestone,
@@ -16,7 +15,9 @@ import {
   Maximize2,
   Minimize2,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Compass,
+  MapPin
 } from 'lucide-react';
 import { CampusLocation, Language, NavigationRoute, NavigationStep } from '../types';
 import { TRANSLATIONS } from '../translations';
@@ -26,9 +27,9 @@ interface NavigationPanelProps {
   locations: CampusLocation[];
   fromLocation: CampusLocation | null;
   toLocation: CampusLocation | null;
-  onSelectFrom: (loc: CampusLocation | null) => void;
+  onSelectFrom?: (loc: CampusLocation | null) => void;
   onSelectTo: (loc: CampusLocation | null) => void;
-  onSwapLocations: () => void;
+  onSwapLocations?: () => void;
   route: NavigationRoute | null;
   onClearRoute: () => void;
   language: Language;
@@ -120,8 +121,12 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1 text-[11px] font-bold text-slate-900 truncate">
-              <span className="truncate max-w-[90px] sm:max-w-[120px] text-slate-700">
-                {fromLocation ? (language === 'hi' ? fromLocation.hindiTitle : fromLocation.title) : t.from}
+              <span className="truncate max-w-[90px] sm:max-w-[125px] text-blue-700 font-extrabold flex items-center gap-1">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                </span>
+                <span>{language === 'hi' ? 'लाइव लोकेशन' : 'Live Location'}</span>
               </span>
               <span className="text-slate-400">→</span>
               <span className="truncate max-w-[90px] sm:max-w-[120px] text-blue-600 font-extrabold">
@@ -243,8 +248,8 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
       )}
 
       {/* From & To Selectors */}
-      <div className="space-y-2 relative">
-        {/* From selector */}
+      <div className="space-y-2.5 relative">
+        {/* From selector - Strictly Live GPS Location */}
         <div className="relative flex items-center gap-2.5">
           <div className="w-3.5 flex flex-col items-center">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-blue-200"></div>
@@ -253,84 +258,54 @@ export const NavigationPanel: React.FC<NavigationPanelProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-0.5">
               <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block">
-                {t.from}
+                {language === 'hi' ? 'शुरुआत (केवल लाइव लोकेशन)' : 'Start (Live Location Only)'}
               </label>
+              <span className="text-[9px] font-extrabold text-blue-700 bg-blue-100/90 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-600"></span>
+                </span>
+                {userCoordinates ? (language === 'hi' ? 'GPS एक्टिव' : 'GPS Active') : (language === 'hi' ? 'GPS कनेक्टिंग' : 'GPS Connecting')}
+              </span>
+            </div>
+
+            <div
+              id="nav-live-location-badge"
+              className="w-full bg-blue-50/80 hover:bg-blue-50/95 border border-blue-200/90 rounded-2xl px-3 py-2 text-xs transition flex items-center justify-between gap-2 shadow-2xs"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
+                </span>
+                <div className="min-w-0">
+                  <div className="font-extrabold text-blue-950 text-xs truncate flex items-center gap-1.5">
+                    <span>{language === 'hi' ? 'मेरी लाइव लोकेशन (GPS)' : 'My Current Live Location'}</span>
+                    <span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0">
+                      LIVE
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-blue-700 font-medium truncate">
+                    {userCoordinates
+                      ? `${userCoordinates[0].toFixed(5)}° N, ${userCoordinates[1].toFixed(5)}° E • ${language === 'hi' ? 'रीयल-टाइम ट्रैक' : 'Real-time GPS'}`
+                      : (language === 'hi' ? 'लाइव GPS सिग्नल कनेक्ट हो रहा है...' : 'Acquiring real-time GPS coordinates...')}
+                  </p>
+                </div>
+              </div>
               {onUseCurrentLocationAsStart && (
                 <button
                   type="button"
                   onClick={onUseCurrentLocationAsStart}
-                  className={`text-[9px] font-bold px-2.5 py-0.5 rounded-full border transition flex items-center gap-1 ios-press ${
-                    fromLocation?.id === 'user-current-gps'
-                      ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                  }`}
+                  className="px-2 py-1 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition shrink-0 ios-press shadow-2xs flex items-center gap-1"
+                  title={language === 'hi' ? 'लाइव GPS रीफ्रेश करें' : 'Refresh Live GPS'}
                 >
-                  {language === 'hi' ? 'मेरी GPS लोकेशन' : 'My Live GPS'}
+                  <Compass className="w-3 h-3" />
+                  <span>{language === 'hi' ? 'रीफ्रेश' : 'Refresh'}</span>
                 </button>
               )}
             </div>
-            <select
-              id="nav-select-from"
-              value={fromLocation?.id || ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === 'user-current-gps') {
-                  if (onUseCurrentLocationAsStart) {
-                    onUseCurrentLocationAsStart();
-                  }
-                  return;
-                }
-                const found = locations.find((l) => l.id === val) || null;
-                onSelectFrom(found);
-              }}
-              className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 rounded-2xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 transition truncate shadow-2xs"
-            >
-              <option value="" className="text-slate-400">{t.selectLocation}...</option>
-              {userCoordinates && (
-                <option value="user-current-gps" className="font-bold text-blue-700 bg-white">
-                  📍 {language === 'hi' ? 'मेरी लाइव GPS लोकेशन (Current Location)' : 'My Current Live Location (GPS)'}
-                </option>
-              )}
-              <optgroup label="Campus Gates" className="text-slate-800 bg-white font-semibold">
-                {locations
-                  .filter((l) => l.category === 'gate')
-                  .map((l) => (
-                    <option key={l.id} value={l.id} className="text-slate-800 bg-white">
-                      🚪 {language === 'hi' ? l.hindiTitle : l.title}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Departments & Blocks" className="text-slate-800 bg-white font-semibold">
-                {locations
-                  .filter((l) => l.category === 'department')
-                  .map((l) => (
-                    <option key={l.id} value={l.id} className="text-slate-800 bg-white">
-                      🏛️ {language === 'hi' ? l.hindiTitle : l.title}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Other Locations" className="text-slate-800 bg-white font-semibold">
-                {locations
-                  .filter((l) => l.category !== 'gate' && l.category !== 'department')
-                  .map((l) => (
-                    <option key={l.id} value={l.id} className="text-slate-800 bg-white">
-                      📍 {language === 'hi' ? l.hindiTitle : l.title}
-                    </option>
-                  ))}
-              </optgroup>
-            </select>
           </div>
         </div>
-
-        {/* Swap button */}
-        <button
-          id="btn-swap-navigation"
-          onClick={onSwapLocations}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 transition shadow-xs ios-press"
-          title="Swap Start and Destination"
-        >
-          <ArrowUpDown className="w-3 h-3" />
-        </button>
 
         {/* To selector */}
         <div className="relative flex items-center gap-2.5">

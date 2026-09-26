@@ -462,14 +462,14 @@ export const AdminFacultyManager: React.FC<AdminFacultyManagerProps> = ({
       {isAddModalOpen && (
         <div
           id="faculty-form-modal-backdrop"
-          className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in"
+          className="fixed inset-0 z-60 bg-slate-950/60 backdrop-blur-sm native-modal-backdrop flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in"
         >
           <div
             id="faculty-form-modal-card"
-            className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden text-zinc-900"
+            className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden text-slate-900"
           >
             {/* Modal Header */}
-            <div className="px-4 py-3.5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50">
+            <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-zinc-900 text-white flex items-center justify-center">
                   <Users className="w-4 h-4" />

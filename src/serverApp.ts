@@ -73,14 +73,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Normalize request URL for serverless environments (handles both /api/foo and /foo seamlessly)
-app.use((req, res, next) => {
-  if (!req.url.startsWith("/api") && !req.url.startsWith("/csjmu_nav.apk")) {
-    req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
-  }
-  next();
-});
-
 // Health check and root API info
 app.get(["/api", "/api/health"], (req, res) => {
   res.json({

@@ -50,8 +50,6 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
   const [formFloor, setFormFloor] = useState('Ground & 1st Floor');
   const [formHodName, setFormHodName] = useState('');
   const [formHodCabin, setFormHodCabin] = useState('');
-  const [formRecommendedGate, setFormRecommendedGate] = useState('Gate 1 (Main Gate)');
-  const [formGateId, setFormGateId] = useState('loc-gate-1');
   const [formKeyRoomsRaw, setFormKeyRoomsRaw] = useState('');
   const [formTags, setFormTags] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -63,11 +61,6 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
     return locations.filter(
       (l) => l.category === 'department' || l.category === 'admin' || l.category === 'library' || l.category === 'facility'
     );
-  }, [locations]);
-
-  // Gate locations
-  const gateOptions = useMemo(() => {
-    return locations.filter((l) => l.category === 'gate');
   }, [locations]);
 
   // Filtered courses
@@ -99,8 +92,6 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
     setFormFloor('Ground & 1st Floor');
     setFormHodName('');
     setFormHodCabin('Cabin 101');
-    setFormRecommendedGate('Gate 1 (Main Gate)');
-    setFormGateId('loc-gate-1');
     setFormKeyRoomsRaw('Classroom 101 (Room 101, Ground Floor), Lab 102 (Room 102, Ground Floor)');
     setFormTags('CSJMU, Department, Engineering, Syllabus');
     setFormDescription('');
@@ -131,8 +122,6 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
     setFormFloor(course.floor);
     setFormHodName(course.hodName);
     setFormHodCabin(course.hodCabin);
-    setFormRecommendedGate(course.recommendedGate);
-    setFormGateId(course.recommendedGateId || 'loc-gate-1');
 
     // Format key rooms into string: "Name (Room, Floor), ..."
     const roomsStr = course.keyRooms.map((r) => `${r.name} (${r.room}, ${r.floor})`).join(', ');
@@ -216,8 +205,6 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
         floor: formFloor.trim() || 'Ground Floor',
         hodName: formHodName.trim() || 'Department Head',
         hodCabin: formHodCabin.trim() || 'HOD Cabin',
-        recommendedGate: formRecommendedGate.trim() || 'Gate 1',
-        recommendedGateId: formGateId,
         keyRooms: parsedRooms,
         tags: tagsArray.length > 0 ? tagsArray : [formCourseName, formDeptName, 'CSJMU'],
         description: formDescription.trim() || undefined,
@@ -238,8 +225,6 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
         floor: formFloor.trim() || 'Ground Floor',
         hodName: formHodName.trim() || 'Department Head',
         hodCabin: formHodCabin.trim() || 'HOD Cabin',
-        recommendedGate: formRecommendedGate.trim() || 'Gate 1',
-        recommendedGateId: formGateId,
         keyRooms: parsedRooms,
         tags: tagsArray.length > 0 ? tagsArray : [formCourseName, formDeptName, 'CSJMU'],
         description: formDescription.trim() || undefined,
@@ -416,10 +401,13 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
                     <span className="text-[10px] text-zinc-500 block truncate">{course.hodCabin}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-zinc-500 font-bold block">
-                      {language === 'hi' ? 'सुझावित गेट:' : 'Recommended Gate:'}
+                    <span className="text-[10px] text-emerald-600 font-bold block flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      {language === 'hi' ? 'नेविगेशन:' : 'Navigation:'}
                     </span>
-                    <span className="font-bold text-zinc-900 truncate block">{course.recommendedGate}</span>
+                    <span className="font-bold text-zinc-900 truncate block text-xs">
+                      {language === 'hi' ? 'लाइव GPS' : 'Live GPS'}
+                    </span>
                   </div>
                 </div>
 
@@ -534,14 +522,14 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
       {isFormModalOpen && (
         <div
           id="dept-form-modal-backdrop"
-          className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in"
+          className="fixed inset-0 z-60 bg-slate-950/60 backdrop-blur-sm native-modal-backdrop flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in"
         >
           <div
             id="dept-form-modal-card"
-            className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden text-zinc-900"
+            className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden text-slate-900"
           >
             {/* Header */}
-            <div className="px-4 py-3.5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50">
+            <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-zinc-900 text-white flex items-center justify-center">
                   <GraduationCap className="w-4 h-4" />
@@ -721,41 +709,7 @@ export const AdminDepartmentManager: React.FC<AdminDepartmentManagerProps> = ({
                 </div>
               </div>
 
-              {/* Row 6: Recommended Entrance Gate */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">
-                    {language === 'hi' ? 'सुझावित प्रवेश द्वार (Gate Text) *' : 'Recommended Entry Gate *'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formRecommendedGate}
-                    onChange={(e) => setFormRecommendedGate(e.target.value)}
-                    placeholder="e.g. Gate 2 (UIET Entrance Gate)"
-                    className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">
-                    {language === 'hi' ? 'मैप गेट आईडी' : 'Map Gate Marker'}
-                  </label>
-                  <select
-                    value={formGateId}
-                    onChange={(e) => setFormGateId(e.target.value)}
-                    className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
-                  >
-                    {gateOptions.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 7: Courses Offered in this Department */}
+              {/* Courses Offered in this Department */}
               <div>
                 <label className="block text-xs font-bold text-zinc-700 mb-1">
                   {language === 'hi'

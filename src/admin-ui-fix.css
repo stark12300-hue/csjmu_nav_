@@ -1,23 +1,70 @@
 /* Admin + Events visual fixes */
 
-/* Targeted override for Admin Manager Modal section requested by user */
-div#root:nth-of-type(1) > div#csjmu-app-root:nth-of-type(1) > div#admin-manager-modal-backdrop:nth-of-type(4) > div#admin-manager-modal-card:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1),
-div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1),
-div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) {
+/* All Sub-modals & Dialogs crisp backdrop & solid white card */
+#faculty-form-modal-backdrop,
+#dept-form-modal-backdrop,
+div[id$="-modal-backdrop"],
+div[id$="-form-modal-backdrop"] {
+  background: rgba(15, 23, 42, 0.6) !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+#faculty-form-modal-card,
+#dept-form-modal-card,
+div[id$="-modal-card"],
+div[id$="-form-modal-card"] {
   background: #FFFFFF !important;
   background-color: #FFFFFF !important;
   color: #0F172A !important;
-  border-color: #E2E8F0 !important;
+  border: 1px solid #CBD5E1 !important;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 4px 16px -2px rgba(15, 23, 42, 0.08) !important;
 }
 
-div#root:nth-of-type(1) > div#csjmu-app-root:nth-of-type(1) > div#admin-manager-modal-backdrop:nth-of-type(4) > div#admin-manager-modal-card:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) h4,
-div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) h4 {
+#faculty-form-modal-card h2,
+#faculty-form-modal-card h3,
+#faculty-form-modal-card h4,
+#dept-form-modal-card h2,
+#dept-form-modal-card h3,
+#dept-form-modal-card h4 {
   color: #0F172A !important;
 }
 
-div#root:nth-of-type(1) > div#csjmu-app-root:nth-of-type(1) > div#admin-manager-modal-backdrop:nth-of-type(4) > div#admin-manager-modal-card:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) p,
-div#root > div#csjmu-app-root > div#admin-manager-modal-backdrop > div#admin-manager-modal-card > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) p {
-  color: #64748B !important;
+#faculty-form-modal-card p,
+#dept-form-modal-card p {
+  color: #475569 !important;
+}
+
+#faculty-form-modal-card label,
+#dept-form-modal-card label {
+  color: #0F172A !important;
+  font-weight: 700 !important;
+}
+
+#faculty-form-modal-card input:not([type="checkbox"]):not([type="radio"]),
+#faculty-form-modal-card select,
+#faculty-form-modal-card textarea,
+#dept-form-modal-card input:not([type="checkbox"]):not([type="radio"]),
+#dept-form-modal-card select,
+#dept-form-modal-card textarea {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1.5px solid #CBD5E1 !important;
+  font-weight: 500 !important;
+}
+
+#faculty-form-modal-card input:focus,
+#faculty-form-modal-card select:focus,
+#faculty-form-modal-card textarea:focus,
+#dept-form-modal-card input:focus,
+#dept-form-modal-card select:focus,
+#dept-form-modal-card textarea:focus {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #2563EB !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18) !important;
 }
 
 /* Keep the Admin Portal visually separated from the viewport on mobile too. */

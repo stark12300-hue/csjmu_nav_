@@ -24,7 +24,7 @@ interface DepartmentFinderModalProps {
   isOpen: boolean;
   onClose: () => void;
   locations: CampusLocation[];
-  onNavigateToDepartment: (deptLocation: CampusLocation, fromGateLocation?: CampusLocation) => void;
+  onNavigateToDepartment: (deptLocation: CampusLocation) => void;
   onOpenAdminManager?: () => void;
   language: Language;
   courses?: CourseDepartmentMapping[];
@@ -85,9 +85,8 @@ export const DepartmentFinderModal: React.FC<DepartmentFinderModalProps> = ({
 
   const handleStartNavigation = (course: CourseDepartmentMapping) => {
     const deptLocation = locations.find((l) => l.id === course.departmentLocationId);
-    const gateLocation = locations.find((l) => l.id === course.recommendedGateId);
     if (deptLocation) {
-      onNavigateToDepartment(deptLocation, gateLocation);
+      onNavigateToDepartment(deptLocation);
       onClose();
     }
   };
@@ -381,12 +380,16 @@ export const DepartmentFinderModal: React.FC<DepartmentFinderModalProps> = ({
                   </div>
 
                   <div className="p-3 bg-white border border-zinc-200 rounded-2xl shadow-2xs">
-                    <div className="flex items-center gap-1.5 text-zinc-500 text-xs font-semibold">
-                      <DoorOpen className="w-3.5 h-3.5 text-zinc-700" />
-                      <span>{t.recommendedEntry}</span>
+                    <div className="flex items-center gap-1.5 text-blue-700 text-xs font-semibold">
+                      <Navigation className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{language === 'hi' ? 'नेविगेशन मोड' : 'Navigation Mode'}</span>
                     </div>
-                    <p className="text-xs font-bold text-zinc-900 mt-1 truncate">
-                      {selectedCourse.recommendedGate}
+                    <p className="text-xs font-bold text-zinc-900 mt-1 truncate flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                      </span>
+                      <span>{language === 'hi' ? 'लाइव GPS लोकेशन' : 'Live GPS Route'}</span>
                     </p>
                   </div>
                 </div>

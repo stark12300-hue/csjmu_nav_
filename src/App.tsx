@@ -598,7 +598,6 @@ export function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const toParam = params.get('to');
-    const fromParam = params.get('from');
 
     if (toParam) {
       const targetLoc = locations.find((l) => l.id === toParam);
@@ -610,115 +609,97 @@ export function App() {
         setSelectedLocation({ ...targetLoc, facultyList: matchedFaculty });
       }
     }
-    if (fromParam) {
-      const startLoc = locations.find((l) => l.id === fromParam);
-      if (startLoc) {
-        setFromLocation(startLoc);
-      }
-    }
   }, []);
 
-  // Recalculate Route whenever fromLocation or toLocation changes
+  // Recalculate Route whenever toLocation or userCoordinates changes - Exclusively from Live GPS Location
   useEffect(() => {
     if (!toLocation) {
       setNavigationRoute(null);
       return;
     }
 
-    // Default to Live GPS whenever GPS coordinates exist, otherwise fallback to Gate 1.
-    // This ensures that when starting navigation, the user immediately gets a real by-road
-    // route from their exact live position rather than a static route from Gate 1.
-    const defaultStart: CampusLocation | null =
-      fromLocation ||
-      (userCoordinates
-        ? {
-            id: 'user-current-gps',
-            title: language === 'hi' ? 'मेरी लाइव GPS लोकेशन' : 'My Live GPS Location',
-            hindiTitle: 'मेरी लाइव GPS लोकेशन',
-            category: 'facility' as const,
-            coordinates: userCoordinates,
-            block: 'Campus',
-            description: 'Your current real-time GPS location.',
-          }
-        : locations.find((l) => l.id === 'loc-gate-1') || null);
+    // Starting location is strictly the user's Live Location
+    const liveStart: CampusLocation = {
+      id: 'user-current-gps',
+      title: language === 'hi' ? 'मेरी लाइव GPS लोकेशन' : 'My Live GPS Location',
+      hindiTitle: 'मेरी लाइव GPS लोकेशन',
+      category: 'facility' as const,
+      coordinates: userCoordinates || CSJMU_CENTER,
+      block: 'Campus',
+      description: 'Your current real-time GPS location.',
+    };
 
-    if (defaultStart) {
-      const liveStart: CampusLocation =
-        defaultStart.id === 'user-current-gps' && userCoordinates
-          ? { ...defaultStart, coordinates: userCoordinates }
-          : defaultStart;
+    setFromLocation(liveStart);
 
-      const isFromOnCampus = isCoordinateOnCampus(liveStart.coordinates);
-      const isToOnCampus = isCoordinateOnCampus(toLocation.coordinates);
-      const isPurelyCampusRoute = isFromOnCampus && isToOnCampus;
+    const isFromOnCampus = isCoordinateOnCampus(liveStart.coordinates);
+    const isToOnCampus = isCoordinateOnCampus(toLocation.coordinates);
+    const isPurelyCampusRoute = isFromOnCampus && isToOnCampus;
 
-      // Real road router request throttling: update whenever user moves > 12m or every 5s
-      const now = Date.now();
-      const previousRequest = lastRoadRouteRequestRef.current;
-      const lastCoords = previousRequest.coords;
-      const movedSinceLastRequest = lastCoords
-        ? getDistanceMeters(lastCoords, liveStart.coordinates)
-        : Infinity;
-      const shouldUseRoadRouter =
-        !lastCoords ||
-        now - previousRequest.time > 5000 ||
-        movedSinceLastRequest > 12 ||
-        defaultStart.id !== 'user-current-gps';
+    // Real road router request throttling: update whenever user moves > 12m or every 5s
+    const now = Date.now();
+    const previousRequest = lastRoadRouteRequestRef.current;
+    const lastCoords = previousRequest.coords;
+    const movedSinceLastRequest = lastCoords
+      ? getDistanceMeters(lastCoords, liveStart.coordinates)
+      : Infinity;
+    const shouldUseRoadRouter =
+      !lastCoords ||
+      now - previousRequest.time > 5000 ||
+      movedSinceLastRequest > 12;
 
-      let cancelled = false;
-      const calculate = async () => {
-        // 1. If both locations are inside CSJMU campus, use the local high-precision paved walkway graph immediately (Instant & 100% reliable)
-        if (isPurelyCampusRoute) {
-          const campusRoute = calculateCampusRoute(liveStart, toLocation);
-          if (!cancelled && campusRoute) {
-            setNavigationRoute(campusRoute);
-            return;
-          }
+    let cancelled = false;
+    const calculate = async () => {
+      // 1. If both locations are inside CSJMU campus, use the local high-precision paved walkway graph immediately (Instant & 100% reliable)
+      if (isPurelyCampusRoute) {
+        const campusRoute = calculateCampusRoute(liveStart, toLocation);
+        if (!cancelled && campusRoute) {
+          setNavigationRoute(campusRoute);
+          return;
         }
+      }
 
-        // 2. If either point is outside campus (e.g. from user house / city road), prioritize real city road routing
-        if (!isPurelyCampusRoute && shouldUseRoadRouter) {
-          lastRoadRouteRequestRef.current = { time: now, coords: liveStart.coordinates };
-          const roadRoute = await calculateRoadRoute(liveStart, toLocation);
-          if (cancelled) return;
-          if (roadRoute && roadRoute.path.length > 1) {
-            setNavigationRoute(roadRoute);
-            return;
-          }
+      // 2. If either point is outside campus (e.g. from user house / city road), prioritize real city road routing
+      if (!isPurelyCampusRoute && shouldUseRoadRouter) {
+        lastRoadRouteRequestRef.current = { time: now, coords: liveStart.coordinates };
+        const roadRoute = await calculateRoadRoute(liveStart, toLocation);
+        if (cancelled) return;
+        if (roadRoute && roadRoute.path.length > 1) {
+          setNavigationRoute(roadRoute);
+          return;
         }
+      }
 
-        // 3. Fallback if user is outside campus and real road router failed (e.g. device is offline):
-        // Route from the nearest official university gate, NEVER draw a direct straight line through houses/air!
-        if (!isFromOnCampus) {
-          const nearestGate = getBestCampusEntranceGate(liveStart.coordinates);
-          const gateToDestRoute = calculateCampusRoute(nearestGate, toLocation);
-          if (gateToDestRoute && !cancelled) {
-            const gateDist = Math.round(getDistanceMeters(liveStart.coordinates, nearestGate.coordinates));
-            const enrichedSteps = [
-              {
-                instructionEn: `Follow city road towards CSJMU ${nearestGate.title} (${gateDist} m) to enter campus`,
-                instructionHi: `परिसर में प्रवेश के लिए सड़क मार्ग से सीएसजेएमयू ${nearestGate.hindiTitle} (${gateDist} मी.) की ओर जाएं`,
-                distanceMeters: gateDist,
-                durationSeconds: Math.round(gateDist / 1.3),
-                action: 'straight' as const,
-                landmarkName: nearestGate.title,
-                coordinates: nearestGate.coordinates,
-              },
-              ...gateToDestRoute.steps,
-            ];
-            setNavigationRoute({
-              ...gateToDestRoute,
-              fromLocation: liveStart,
-              steps: enrichedSteps,
-            });
-            return;
-          }
+      // 3. Fallback if user is outside campus and real road router failed (e.g. device is offline):
+      // Route from the nearest official university gate, NEVER draw a direct straight line through houses/air!
+      if (!isFromOnCampus) {
+        const nearestGate = getBestCampusEntranceGate(liveStart.coordinates);
+        const gateToDestRoute = calculateCampusRoute(nearestGate, toLocation);
+        if (gateToDestRoute && !cancelled) {
+          const gateDist = Math.round(getDistanceMeters(liveStart.coordinates, nearestGate.coordinates));
+          const enrichedSteps = [
+            {
+              instructionEn: `Follow city road towards CSJMU ${nearestGate.title} (${gateDist} m) to enter campus`,
+              instructionHi: `परिसर में प्रवेश के लिए सड़क मार्ग से सीएसजेएमयू ${nearestGate.hindiTitle} (${gateDist} मी.) की ओर जाएं`,
+              distanceMeters: gateDist,
+              durationSeconds: Math.round(gateDist / 1.3),
+              action: 'straight' as const,
+              landmarkName: nearestGate.title,
+              coordinates: nearestGate.coordinates,
+            },
+            ...gateToDestRoute.steps,
+          ];
+          setNavigationRoute({
+            ...gateToDestRoute,
+            fromLocation: liveStart,
+            steps: enrichedSteps,
+          });
+          return;
         }
-      };
-      calculate();
-      return () => { cancelled = true; };
-    }
-  }, [fromLocation, toLocation, language, userCoordinates]);
+      }
+    };
+    calculate();
+    return () => { cancelled = true; };
+  }, [toLocation, language, userCoordinates]);
 
   // Handle Location Selection
   // Attaches the up-to-date list of faculty posted in this building/department
@@ -732,52 +713,32 @@ export function App() {
     setFocusCoordinates(loc.coordinates);
   };
 
-  // Start Navigation To Location
-  const handleStartNavigationTo = (destLoc: CampusLocation, startLoc?: CampusLocation) => {
+  // Start Navigation To Location - Always from Live Location
+  const handleStartNavigationTo = (destLoc: CampusLocation) => {
     setToLocation(destLoc);
     setNavTriggerId(Date.now());
     setFocusCoordinates(destLoc.coordinates);
 
-    if (startLoc) {
-      setFromLocation(startLoc);
-    } else {
-      // If user is currently physically on campus with GPS, use live GPS; otherwise default to Gate 1
-      const isGpsOnCampus = userCoordinates && isCoordinateOnCampus(userCoordinates);
-      if (isGpsOnCampus) {
-        setFromLocation({
-          id: 'user-current-gps',
-          title: language === 'hi' ? 'मेरी लाइव GPS लोकेशन' : 'My Live GPS Location',
-          hindiTitle: 'मेरी लाइव GPS लोकेशन',
-          category: 'facility',
-          coordinates: userCoordinates,
-          block: 'Campus',
-          description: 'Your current real-time GPS location.',
-        });
-      } else {
-        // If fromLocation is not set or is identical to destination, default to Main Gate 1
-        if (!fromLocation || fromLocation.id === destLoc.id) {
-          const gate1 = locations.find((l) => l.id === 'loc-gate-1') || null;
-          setFromLocation(gate1);
-        }
-      }
-    }
+    // Strictly Live Location as starting point
+    setFromLocation({
+      id: 'user-current-gps',
+      title: language === 'hi' ? 'मेरी लाइव GPS लोकेशन' : 'My Live GPS Location',
+      hindiTitle: 'मेरी लाइव GPS लोकेशन',
+      category: 'facility',
+      coordinates: userCoordinates || CSJMU_CENTER,
+      block: 'Campus',
+      description: 'Your current real-time GPS location.',
+    });
+
     // Reset throttle ref to trigger immediate computation
     lastRoadRouteRequestRef.current = { time: 0, coords: null };
     setSelectedLocation(null);
     setIsNavPanelMinimized(true);
   };
 
-  // Swap Start & Destination
+  // Swap Start & Destination - Disabled: Navigation is strictly from Live Location
   const handleSwapLocations = () => {
-    const oldFrom = fromLocation;
-    const oldTo = toLocation;
-    setFromLocation(oldTo);
-    setToLocation(oldFrom);
-    if (oldFrom) {
-      setNavTriggerId(Date.now());
-      setFocusCoordinates(oldFrom.coordinates);
-    }
-    lastRoadRouteRequestRef.current = { time: 0, coords: null };
+    // Start is locked to live location
   };
 
   // Clear Navigation Route
@@ -1711,15 +1672,10 @@ export function App() {
             locations={locations}
             fromLocation={fromLocation}
             toLocation={toLocation}
-            onSelectFrom={(loc) => {
-              setFromLocation(loc);
-              if (loc) setNavTriggerId(Date.now());
-            }}
             onSelectTo={(loc) => {
               setToLocation(loc);
               if (loc) setNavTriggerId(Date.now());
             }}
-            onSwapLocations={handleSwapLocations}
             route={navigationRoute}
             onClearRoute={handleClearRoute}
             language={language}
@@ -1847,8 +1803,8 @@ export function App() {
         onClose={() => setIsDeptFinderOpen(false)}
         locations={locations}
         courses={coursesList}
-        onNavigateToDepartment={(deptLoc, gateLoc) => {
-          handleStartNavigationTo(deptLoc, gateLoc);
+        onNavigateToDepartment={(deptLoc) => {
+          handleStartNavigationTo(deptLoc);
         }}
         onOpenAdminManager={() => {
           setIsDeptFinderOpen(false);

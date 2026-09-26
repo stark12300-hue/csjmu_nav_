@@ -54,5 +54,11 @@
       "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs22.x",
+      "maxDuration": 30
+    }
+  }
 }

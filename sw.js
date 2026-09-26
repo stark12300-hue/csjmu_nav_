@@ -1,5 +1,5 @@
 // CSJMU Navigator Service Worker for Offline Campus Map Cache & Install
-const CACHE_NAME = 'csjmu-navigator-v7-standard-navbar';
+const CACHE_NAME = 'csjmu-navigator-v8-teacher-sync';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

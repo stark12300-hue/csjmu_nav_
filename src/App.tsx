@@ -672,7 +672,7 @@ export function App() {
       }
 
       // 3. Fallback if user is outside campus and real road router failed (e.g. device is offline):
-      // Route from the nearest official university gate, NEVER draw a direct straight line through houses/air!
+      // Route from the nearest official university gate, connecting user position cleanly to gate and campus
       if (!isFromOnCampus) {
         const nearestGate = getBestCampusEntranceGate(liveStart.coordinates);
         const gateToDestRoute = calculateCampusRoute(nearestGate, toLocation);
@@ -694,6 +694,8 @@ export function App() {
             ...gateToDestRoute,
             fromLocation: liveStart,
             steps: enrichedSteps,
+            path: [liveStart.coordinates, ...gateToDestRoute.path],
+            totalDistanceMeters: gateToDestRoute.totalDistanceMeters + gateDist,
           });
           return;
         }

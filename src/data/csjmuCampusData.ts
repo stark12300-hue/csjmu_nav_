@@ -4317,6 +4317,70 @@ export const CAMPUS_NODES: RouteNode[] = [
       26.503,
       80.2675
     ]
+  },
+  {
+    "id": "node-auditorium-main",
+    "name": "CSJM University Auditorium (Rani Laxmibai Sabhagar)",
+    "coordinates": [
+      26.5042,
+      80.2684
+    ]
+  },
+  {
+    "id": "node-ssc-cell",
+    "name": "Student Support Cell & Service Centre",
+    "coordinates": [
+      26.50434,
+      80.27221
+    ]
+  },
+  {
+    "id": "node-hostel-ambedkar",
+    "name": "Dr. B. R. Ambedkar Boys Hostel",
+    "coordinates": [
+      26.5074,
+      80.2698
+    ]
+  },
+  {
+    "id": "node-hostel-swarn-jayanti",
+    "name": "Swarn Jayanti Boys Hostel",
+    "coordinates": [
+      26.50845,
+      80.26883
+    ]
+  },
+  {
+    "id": "node-botanical-garden",
+    "name": "University Botanical Garden & Herbal Nursery",
+    "coordinates": [
+      26.5033,
+      80.26912
+    ]
+  },
+  {
+    "id": "node-fine-arts",
+    "name": "Institute of Fine Arts",
+    "coordinates": [
+      26.50415,
+      80.2676
+    ]
+  },
+  {
+    "id": "node-agriculture",
+    "name": "School of Agriculture Science & Technology",
+    "coordinates": [
+      26.50518,
+      80.26935
+    ]
+  },
+  {
+    "id": "node-nss-ncc",
+    "name": "NSS & NCC Directorate Office",
+    "coordinates": [
+      26.5041,
+      80.26845
+    ]
   }
 ];
 
@@ -4772,6 +4836,326 @@ export const CAMPUS_EDGES: RouteEdge[] = [
       ]
     ],
     "surface": "road"
+  },
+  {
+    "from": "node-english",
+    "to": "node-arts-front",
+    "distanceMeters": 83,
+    "pathCoordinates": [
+      [26.4985, 80.2685],
+      [26.4978, 80.2682]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-english",
+    "to": "node-education",
+    "distanceMeters": 76,
+    "pathCoordinates": [
+      [26.4985, 80.2685],
+      [26.498, 80.269]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-education",
+    "to": "node-arts-front",
+    "distanceMeters": 83,
+    "pathCoordinates": [
+      [26.498, 80.269],
+      [26.4978, 80.2682]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-education",
+    "to": "node-lecture-hall",
+    "distanceMeters": 185,
+    "pathCoordinates": [
+      [26.498, 80.269],
+      [26.499, 80.2675]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-materials-science",
+    "to": "node-lifescience-front",
+    "distanceMeters": 78,
+    "pathCoordinates": [
+      [26.5006, 80.2682],
+      [26.5012, 80.2678]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-materials-science",
+    "to": "node-mca-front",
+    "distanceMeters": 109,
+    "pathCoordinates": [
+      [26.5006, 80.2682],
+      [26.5002, 80.2672]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-materials-science",
+    "to": "node-pharmacy-front",
+    "distanceMeters": 158,
+    "pathCoordinates": [
+      [26.5006, 80.2682],
+      [26.502, 80.2685]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-university-school",
+    "to": "node-guest-house",
+    "distanceMeters": 156,
+    "pathCoordinates": [
+      [26.4948, 80.268],
+      [26.4952, 80.2665]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-university-school",
+    "to": "node-law-front",
+    "distanceMeters": 195,
+    "pathCoordinates": [
+      [26.4948, 80.268],
+      [26.4965, 80.2675]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-law-front",
+    "to": "node-bank-junction",
+    "distanceMeters": 272,
+    "pathCoordinates": [
+      [26.4965, 80.2675],
+      [26.4968, 80.2648]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-health-center",
+    "to": "node-guest-house",
+    "distanceMeters": 132,
+    "pathCoordinates": [
+      [26.4962, 80.2658],
+      [26.4952, 80.2665]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-canteen-hub",
+    "to": "node-admin-front",
+    "distanceMeters": 161,
+    "pathCoordinates": [
+      [26.4988, 80.2645],
+      [26.4975, 80.2652]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-auditorium-front",
+    "to": "node-library-front",
+    "distanceMeters": 154,
+    "pathCoordinates": [
+      [26.4998, 80.2648],
+      [26.4992, 80.2662]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-uiet-junc-3",
+    "to": "node-hotel-management",
+    "distanceMeters": 174,
+    "pathCoordinates": [
+      [26.5022, 80.266],
+      [26.503, 80.2675]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-workshop-front",
+    "to": "node-hotel-management",
+    "distanceMeters": 181,
+    "pathCoordinates": [
+      [26.5015, 80.2668],
+      [26.503, 80.2675]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-workshop-front",
+    "to": "node-mca-front",
+    "distanceMeters": 150,
+    "pathCoordinates": [
+      [26.5015, 80.2668],
+      [26.5002, 80.2672]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-hotel-management",
+    "to": "node-pharmacy-front",
+    "distanceMeters": 150,
+    "pathCoordinates": [
+      [26.503, 80.2675],
+      [26.502, 80.2685]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-hotel-management",
+    "to": "node-fine-arts",
+    "distanceMeters": 128,
+    "pathCoordinates": [
+      [26.503, 80.2675],
+      [26.50415, 80.2676]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-fine-arts",
+    "to": "node-auditorium-main",
+    "distanceMeters": 80,
+    "pathCoordinates": [
+      [26.50415, 80.2676],
+      [26.5042, 80.2684]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-auditorium-main",
+    "to": "node-nss-ncc",
+    "distanceMeters": 12,
+    "pathCoordinates": [
+      [26.5042, 80.2684],
+      [26.5041, 80.26845]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-auditorium-main",
+    "to": "node-botanical-garden",
+    "distanceMeters": 122,
+    "pathCoordinates": [
+      [26.5042, 80.2684],
+      [26.5033, 80.26912]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-botanical-garden",
+    "to": "node-stadium-north",
+    "distanceMeters": 145,
+    "pathCoordinates": [
+      [26.5033, 80.26912],
+      [26.5042, 80.2702]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-auditorium-main",
+    "to": "node-agriculture",
+    "distanceMeters": 144,
+    "pathCoordinates": [
+      [26.5042, 80.2684],
+      [26.50518, 80.26935]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-agriculture",
+    "to": "node-hostel-shivaji",
+    "distanceMeters": 125,
+    "pathCoordinates": [
+      [26.50518, 80.26935],
+      [26.506, 80.2685]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-hostel-shivaji",
+    "to": "node-hostel-ambedkar",
+    "distanceMeters": 202,
+    "pathCoordinates": [
+      [26.506, 80.2685],
+      [26.5074, 80.2698]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-hostel-ambedkar",
+    "to": "node-hostel-swarn-jayanti",
+    "distanceMeters": 152,
+    "pathCoordinates": [
+      [26.5074, 80.2698],
+      [26.50845, 80.26883]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-stadium-north",
+    "to": "node-ssc-cell",
+    "distanceMeters": 201,
+    "pathCoordinates": [
+      [26.5042, 80.2702],
+      [26.50434, 80.27221]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-gate-3",
+    "to": "node-ssc-cell",
+    "distanceMeters": 191,
+    "pathCoordinates": [
+      [26.5055, 80.2708],
+      [26.50434, 80.27221]
+    ],
+    "surface": "road"
+  },
+  {
+    "from": "node-hostel-ganga",
+    "to": "node-fine-arts",
+    "distanceMeters": 156,
+    "pathCoordinates": [
+      [26.5048, 80.2662],
+      [26.50415, 80.2676]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-hostel-ganga",
+    "to": "node-hotel-management",
+    "distanceMeters": 238,
+    "pathCoordinates": [
+      [26.5048, 80.2662],
+      [26.503, 80.2675]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-stadium-north",
+    "to": "node-auditorium-main",
+    "distanceMeters": 179,
+    "pathCoordinates": [
+      [26.5042, 80.2702],
+      [26.5042, 80.2684]
+    ],
+    "surface": "footpath"
+  },
+  {
+    "from": "node-uiet-junc-2",
+    "to": "node-workshop-front",
+    "distanceMeters": 174,
+    "pathCoordinates": [
+      [26.5018, 80.2651],
+      [26.5015, 80.2668]
+    ],
+    "surface": "footpath"
   }
 ];
 

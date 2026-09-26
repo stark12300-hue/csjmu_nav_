@@ -420,27 +420,9 @@ export function App() {
     testFirestoreConnection().then((ok) => {
       if (ok) {
         console.log('Firebase Firestore live connection established.');
-        // Initial automatic backup sync: ensure campus locations are backed up to Firestore
-        try {
-          const locs = getSavedLocationsList();
-          if (locs && locs.length > 0) {
-            batchSaveLocationsToFirestore(locs).catch((e) => console.warn('Initial Firestore location sync notice:', e));
-          }
-          const fac = getStoredFaculty();
-          if (fac && fac.length > 0) {
-            batchSaveFacultyToFirestore(fac).catch((e) => console.warn('Initial Firestore faculty sync notice:', e));
-          }
-          const crs = getStoredCourses();
-          if (crs && crs.length > 0) {
-            batchSaveCoursesToFirestore(crs).catch((e) => console.warn('Initial Firestore course sync notice:', e));
-          }
-          const evts = getStoredEvents();
-          if (evts && evts.length > 0) {
-            Promise.all(evts.map((event) => saveEventToFirestore(event))).catch((e) => console.warn('Initial Firestore event sync notice:', e));
-          }
-        } catch (e) {
-          console.warn('Initial sync error:', e);
-        }
+        // Do not blindly overwrite Firestore with browser-local data on startup.
+        // Firestore listeners below hydrate the UI from cloud state. Existing local
+        // data can be pushed deliberately through the Admin "Sync All" action.
       }
     });
 
@@ -1150,6 +1132,8 @@ export function App() {
       const teachers = getStoredTeacherAccounts();
 
       await batchSaveLocationsToFirestore(locs);
+      await batchSaveFacultyToFirestore(fac);
+      await batchSaveCoursesToFirestore(crs);
       for (const e of evts) {
         await saveEventToFirestore(e);
       }

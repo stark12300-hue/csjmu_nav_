@@ -13,6 +13,7 @@ import {
   orderBy,
   onSnapshot,
   getDocFromServer,
+  getDocsFromServer,
   writeBatch,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -90,7 +91,7 @@ export async function testFirestoreConnection(): Promise<boolean> {
 export async function getEventsFromFirestore(): Promise<CampusEvent[]> {
   const colPath = 'campus_events';
   try {
-    const snap = await getDocs(collection(db, colPath));
+    const snap = await getDocsFromServer(collection(db, colPath));
     const events: CampusEvent[] = [];
     snap.forEach((d) => {
       events.push(d.data() as CampusEvent);
@@ -336,14 +337,18 @@ export function subscribeTeachersFromFirestore(onUpdate: (teachers: TeacherAccou
   const colPath = 'teacher_accounts';
   return onSnapshot(
     collection(db, colPath),
+    { includeMetadataChanges: true },
     (snap) => {
+      // Do not let a device's IndexedDB/local Firestore cache become the
+      // apparent source of truth. Wait for a server-backed snapshot.
+      if (snap.metadata.fromCache) return;
       const teachers: TeacherAccount[] = [];
       snap.forEach((d) => {
         teachers.push(d.data() as TeacherAccount);
       });
-      if (teachers.length > 0) {
-        onUpdate(teachers);
-      }
+      // Also notify for an empty server collection so every Admin device
+      // reflects the actual Firestore state.
+      onUpdate(teachers);
     },
     (err) => {
       handleFirestoreError(err, OperationType.LIST, colPath);

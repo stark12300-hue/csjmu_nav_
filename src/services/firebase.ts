@@ -31,6 +31,12 @@ export enum OperationType {
   WRITE = 'write',
 }
 
+let lastFirestoreErrorMessage = '';
+
+export function getLastFirestoreErrorMessage(): string {
+  return lastFirestoreErrorMessage;
+}
+
 export interface FirestoreErrorInfo {
   error: string;
   operationType: OperationType;
@@ -57,6 +63,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
+  lastFirestoreErrorMessage = `${errInfo.error} (operation: ${operationType}, path: ${path || 'unknown'})`;
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   return errInfo;
 }

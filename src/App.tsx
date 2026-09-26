@@ -115,6 +115,12 @@ import {
   saveLocationToFirestore,
   saveEventToFirestore,
   saveTeacherToFirestore,
+  batchSaveFacultyToFirestore,
+  saveFacultyToFirestore,
+  subscribeFacultyFromFirestore,
+  batchSaveCoursesToFirestore,
+  saveCourseToFirestore,
+  subscribeCoursesFromFirestore,
 } from './services/firebase';
 import { getStoredTeacherAccounts } from './utils/storage';
 import { EventsModal } from './components/EventsModal';
@@ -415,7 +421,19 @@ export function App() {
         try {
           const locs = getSavedLocationsList();
           if (locs && locs.length > 0) {
-            batchSaveLocationsToFirestore(locs).catch((e) => console.warn('Initial Firestore sync notice:', e));
+            batchSaveLocationsToFirestore(locs).catch((e) => console.warn('Initial Firestore location sync notice:', e));
+          }
+          const fac = getStoredFaculty();
+          if (fac && fac.length > 0) {
+            batchSaveFacultyToFirestore(fac).catch((e) => console.warn('Initial Firestore faculty sync notice:', e));
+          }
+          const crs = getStoredCourses();
+          if (crs && crs.length > 0) {
+            batchSaveCoursesToFirestore(crs).catch((e) => console.warn('Initial Firestore course sync notice:', e));
+          }
+          const evts = getStoredEvents();
+          if (evts && evts.length > 0) {
+            Promise.all(evts.map((event) => saveEventToFirestore(event))).catch((e) => console.warn('Initial Firestore event sync notice:', e));
           }
         } catch (e) {
           console.warn('Initial sync error:', e);
@@ -447,21 +465,38 @@ export function App() {
       }
     });
 
-    // 3. Live Teachers Listener from Firestore
-    const unsubTeachers = subscribeTeachersFromFirestore((liveTeachers) => {
-      if (liveTeachers && liveTeachers.length > 0) {
+    // 3. Live Faculty Directory Listener from Firestore
+    const unsubFaculty = subscribeFacultyFromFirestore((liveFaculty) => {
+      if (liveFaculty && liveFaculty.length > 0) {
         setFacultyList((prev) => {
-          const map = new Map<string, any>();
-          for (const t of prev) map.set(t.id, t);
-          for (const t of liveTeachers) map.set(t.id, t);
+          const map = new Map<string, FacultyMember>();
+          for (const f of prev) map.set(f.id, f);
+          for (const f of liveFaculty) map.set(f.id, f);
           return Array.from(map.values());
         });
       }
     });
 
+    // 4. Live Department/Course Listener from Firestore
+    const unsubCourses = subscribeCoursesFromFirestore((liveCourses) => {
+      if (liveCourses && liveCourses.length > 0) {
+        setCoursesList((prev) => {
+          const map = new Map<string, CourseDepartmentMapping>();
+          for (const course of prev) map.set(course.courseId, course);
+          for (const course of liveCourses) map.set(course.courseId, course);
+          return Array.from(map.values());
+        });
+      }
+    });
+
+    // Teacher accounts are synchronized separately by teacherRemote.ts.
+    const unsubTeachers = subscribeTeachersFromFirestore(() => {});
+
     return () => {
       unsubEvents();
       unsubLocations();
+      unsubFaculty();
+      unsubCourses();
       unsubTeachers();
     };
   }, []);
@@ -922,6 +957,7 @@ export function App() {
   const handleAdminAddCourse = (course: CourseDepartmentMapping) => {
     const updated = saveCustomCourse(course);
     setCoursesList(updated);
+    saveCourseToFirestore(course).catch((e) => console.warn('Firestore course save notice:', e));
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -934,6 +970,7 @@ export function App() {
   const handleAdminUpdateCourse = (course: CourseDepartmentMapping) => {
     const updated = updateCourseDepartmentMapping(course);
     setCoursesList(updated);
+    saveCourseToFirestore(course).catch((e) => console.warn('Firestore course update notice:', e));
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -946,6 +983,9 @@ export function App() {
   const handleAdminDeleteCourse = (courseId: string) => {
     const updated = deleteCourseDepartmentMapping(courseId);
     setCoursesList(updated);
+    // Keep the local/server/GitHub deletion behavior unchanged; Firestore rules
+    // intentionally expose only document writes, so deletion is handled by the
+    // existing sync path until a dedicated delete helper is introduced.
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -970,6 +1010,7 @@ export function App() {
   const handleAdminAddFaculty = (faculty: FacultyMember) => {
     const updated = saveCustomFaculty(faculty);
     setFacultyList(updated);
+    saveFacultyToFirestore(faculty).catch((e) => console.warn('Firestore faculty save notice:', e));
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -982,6 +1023,7 @@ export function App() {
   const handleAdminUpdateFaculty = (faculty: FacultyMember) => {
     const updated = updateFacultyMember(faculty);
     setFacultyList(updated);
+    saveFacultyToFirestore(faculty).catch((e) => console.warn('Firestore faculty update notice:', e));
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -1072,8 +1114,13 @@ export function App() {
           ).catch((e) => console.warn('Background GitHub auto-push failed:', e));
         }
 
-        // 3. Immediately replicate to Google Firebase Firestore cloud database
+        // 3. Immediately replicate every persistent campus dataset to Firestore
         batchSaveLocationsToFirestore(locs).catch((e) => console.warn('Firestore locations auto-sync:', e));
+        batchSaveFacultyToFirestore(fac).catch((e) => console.warn('Firestore faculty auto-sync:', e));
+        batchSaveCoursesToFirestore(crs).catch((e) => console.warn('Firestore courses auto-sync:', e));
+        evts.forEach((event) => {
+          saveEventToFirestore(event).catch((e) => console.warn('Firestore event auto-sync:', e));
+        });
       } catch (err) {
         console.warn('Campus data auto-sync failed:', err);
       }

@@ -13,10 +13,25 @@ import {
 } from './storage';
 import { saveTeacherToFirestore } from '../services/firebase';
 
+const TEACHER_API_FALLBACK = 'https://csjmu-nav.onrender.com';
+
+async function teacherApiRequest(path: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    const primary = await fetch(path, init);
+    if (primary.status !== 404) return primary;
+  } catch {
+    // Try the persistent Render backend below.
+  }
+
+  const fallbackPath = path.startsWith('/') ? path : '/' + path;
+  return fetch(TEACHER_API_FALLBACK + fallbackPath, init);
+}
+
+
 export async function getRemoteTeacherAccounts(): Promise<TeacherAccount[]> {
   try {
     const authHeaders = getAdminToken() ? getAdminAuthHeaders() : getTeacherAuthHeaders();
-    const res = await fetch('/api/teachers?ts=' + Date.now(), {
+    const res = await teacherApiRequest('/api/teachers?ts=' + Date.now(), {
       headers: { ...authHeaders },
       cache: 'no-store',
     });
@@ -50,7 +65,7 @@ export async function loginRemoteTeacher(
 }> {
   const trimmedIdentifier = (emailOrName || '').trim();
   try {
-    let res = await fetch('/api/teacher/login', {
+    let res = await teacherApiRequest('/api/teacher/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: trimmedIdentifier, password }),
@@ -59,7 +74,7 @@ export async function loginRemoteTeacher(
 
     // If /api/teacher/login returned 404, fallback to /api/teachers with action: 'login'
     if (res.status === 404) {
-      res = await fetch('/api/teachers', {
+      res = await teacherApiRequest('/api/teachers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email: trimmedIdentifier, password }),
@@ -145,7 +160,7 @@ export async function resetRemoteTeacherPassword(
   masterPin: string = ''
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch('/api/teacher/reset-password', {
+    const res = await teacherApiRequest('/api/teacher/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier, newPassword, masterPin }),
@@ -186,8 +201,6 @@ export async function createRemoteTeacherAccount(account: TeacherAccount): Promi
     // Normal same-origin API.
     let result = await request('/api/teachers');
 
-    // Vercel frontend deployments may not expose the Express /api/teachers
-    // route. Fall back to the existing Render backend in that case.
     if (result.res.status === 404) {
       result = await request('https://csjmu-nav.onrender.com/api/teachers');
     }
@@ -223,7 +236,7 @@ export async function updateRemoteTeacher(
       : (getTeacherToken() ? getTeacherAuthHeaders() : getAdminAuthHeaders());
 
     const adminPin = getAdminPin();
-    const res = await fetch('/api/teachers', {
+    const res = await teacherApiRequest('/api/teachers', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -258,7 +271,7 @@ export async function updateRemoteTeacher(
 export async function deleteRemoteTeacher(teacherId: string): Promise<{ success: boolean; accounts?: TeacherAccount[]; message?: string }> {
   try {
     const adminPin = getAdminPin();
-    const res = await fetch('/api/teachers', {
+    const res = await teacherApiRequest('/api/teachers', {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

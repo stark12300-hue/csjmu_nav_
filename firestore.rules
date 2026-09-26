@@ -3,62 +3,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Every Firestore document used by CSJMU Nav has an application
-    // generated document ID. Keep the rule generic enough to support
-    // existing IDs while rejecting empty/invalid IDs.
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
-    }
-
-    // Deny every collection/path that is not explicitly listed below.
-    // This prevents an accidentally added collection from becoming public.
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // ============================================================
-    // CSJMU NAV - COMPLETE FIRESTORE DATA SET
-    // ============================================================
-
-    // Campus events:
-    // event details, posters/images, submissions, approval/rejection,
-    // live/popup state, dates, departments and event metadata.
-    match /campus_events/{eventId} {
-      allow read, write: if isValidId(eventId);
-    }
-
-    // Campus locations:
-    // buildings, rooms, blocks, floors, coordinates, photos,
-    // facilities, departments and faculty/location metadata.
-    match /campus_locations/{locationId} {
-      allow read, write: if isValidId(locationId);
-    }
-
-    // Teacher panel:
-    // signup/profile, ID-card photo, password hash, status,
-    // approval/rejection, permissions and login metadata.
     match /teacher_accounts/{teacherId} {
-      allow read, write: if isValidId(teacherId);
+      allow read, write: if true;
     }
 
-    // Faculty directory:
-    // faculty profiles, department/designation/contact and
-    // related directory metadata.
+    match /campus_events/{eventId} {
+      allow read, write: if true;
+    }
+
+    match /campus_locations/{locationId} {
+      allow read, write: if true;
+    }
+
     match /faculty_members/{facultyId} {
-      allow read, write: if isValidId(facultyId);
+      allow read, write: if true;
     }
 
-    // Departments/courses:
-    // course mapping, department information, HOD, rooms,
-    // floors, descriptions and related metadata.
     match /course_departments/{courseId} {
-      allow read, write: if isValidId(courseId);
+      allow read, write: if true;
     }
 
-    // Student/user feedback:
-    // bug reports and navigation feedback.
     match /bug_reports/{reportId} {
-      allow read, write: if isValidId(reportId);
+      allow read, write: if true;
     }
   }
 }

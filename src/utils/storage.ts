@@ -1366,6 +1366,14 @@ export function getCustomFaculty(): FacultyMember[] {
 
 
 // Client-side auto-sync with CSJMU official website
+export function getCollegeLastSyncTime(): string {
+  try {
+    return localStorage.getItem(COLLEGE_LAST_SYNC_TIME_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
 export async function syncOfficialCollegeEvents(force: boolean = false): Promise<{
   success: boolean;
   count: number;

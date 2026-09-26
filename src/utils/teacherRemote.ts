@@ -189,9 +189,17 @@ export async function resetRemoteTeacherPassword(
 
 export async function createRemoteTeacherAccount(account: TeacherAccount): Promise<{ success: boolean; message?: string }> {
   try {
-    const accounts = await loadFirestoreTeachers();
-    const existing = accounts.find((a) => a.email.toLowerCase() === account.email.toLowerCase());
+    // Firestore is the source of truth. Save the submitted request first so
+    // an Admin can see it even if a previous teacher-list read is temporarily
+    // unavailable. Duplicate/approved accounts are checked when the list is available.
+    let accounts: TeacherAccount[] = [];
+    try {
+      accounts = await loadFirestoreTeachers();
+    } catch {
+      accounts = [];
+    }
 
+    const existing = accounts.find((a) => a.email.toLowerCase() === account.email.toLowerCase());
     if (existing && existing.status === 'approved') {
       return {
         success: false,
@@ -199,8 +207,12 @@ export async function createRemoteTeacherAccount(account: TeacherAccount): Promi
       };
     }
 
-    // Firestore is the source of truth. This also stores the ID-card image.
-    const saved = await saveTeacherToFirestore(account);
+    // Firestore is the source of truth. This also stores the ID-card photo.
+    const saved = await saveTeacherToFirestore({
+      ...account,
+      status: 'pending',
+      permissions: account.permissions || ['manage_profile'],
+    });
     if (!saved) {
       return {
         success: false,

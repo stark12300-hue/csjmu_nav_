@@ -166,8 +166,8 @@ export async function createRemoteTeacherAccount(account: TeacherAccount): Promi
   // Mirror teacher profile to Firestore
   saveTeacherToFirestore(account).catch(() => {});
 
-  try {
-    const res = await fetch('/api/teachers', {
+  const request = async (url: string) => {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account }),
@@ -179,11 +179,34 @@ export async function createRemoteTeacherAccount(account: TeacherAccount): Promi
     } catch {
       data = { message: text.slice(0, 200) };
     }
+    return { res, data };
+  };
+
+  try {
+    // Normal same-origin API.
+    let result = await request('/api/teachers');
+
+    // Vercel frontend deployments may not expose the Express /api/teachers
+    // route. Fall back to the existing Render backend in that case.
+    if (result.res.status === 404) {
+      result = await request('https://csjmu-nav.onrender.com/api/teachers');
+    }
+
     return {
-      success: Boolean(res.ok && data?.success),
-      message: data?.message || data?.error || (res.ok ? undefined : `Server error (${res.status}): ${res.statusText || 'Request failed'}`),
+      success: Boolean(result.res.ok && result.data?.success),
+      message:
+        result.data?.message ||
+        result.data?.error ||
+        (result.res.ok ? undefined : `Server error (${result.res.status}): ${result.res.statusText || 'Request failed'}`),
     };
   } catch (e: any) {
+    // If the backend is temporarily unavailable, Firestore remains the signup mirror.
+    try {
+      const firestoreSaved = await saveTeacherToFirestore(account);
+      if (firestoreSaved) {
+        return { success: true, message: 'Registration saved for Admin verification.' };
+      }
+    } catch {}
     return { success: false, message: e?.message || 'Network error while sending signup request.' };
   }
 }

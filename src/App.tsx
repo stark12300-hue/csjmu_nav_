@@ -215,6 +215,45 @@ export function App() {
   const [isEventsModalOpen, setIsEventsModalOpen] = useState<boolean>(false);
   const [isSubmitEventModalOpen, setIsSubmitEventModalOpen] = useState<boolean>(false);
 
+  // Automatically open the event popup once when a currently-live approved event
+  // becomes available. The event is marked as shown per browser so the popup
+  // does not repeatedly interrupt the user every polling cycle.
+  useEffect(() => {
+    if (isEventsModalOpen || isAdminManagerOpen || isSubmitEventModalOpen || isTeacherPortalOpen) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const liveEvents = events.filter((event) => {
+      if (!event || event.status !== 'approved' || event.isLive === false) return false;
+      const start = event.startDate || today;
+      const end = event.endDate || start;
+      return start <= today && today <= end;
+    });
+
+    if (liveEvents.length === 0) return;
+
+    let shownIds: string[] = [];
+    try {
+      const raw = localStorage.getItem('csjmu_event_popup_shown_v2');
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) shownIds = parsed.filter((id) => typeof id === 'string');
+    } catch {}
+
+    const unseen = liveEvents.find((event) => !shownIds.includes(event.id));
+    if (!unseen) return;
+
+    const nextShown = [...shownIds, unseen.id].slice(-100);
+    try {
+      localStorage.setItem('csjmu_event_popup_shown_v2', JSON.stringify(nextShown));
+    } catch {}
+
+    const timer = window.setTimeout(() => {
+      setIsEventsModalOpen(true);
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [events, isEventsModalOpen, isAdminManagerOpen, isSubmitEventModalOpen, isTeacherPortalOpen]);
+
+
   // Teacher Authentication & Portal System
   const [loggedInTeacher, setLoggedInTeacher] = useState<TeacherAccount | null>(() =>
     getStoredActiveTeacherSession()
@@ -1454,6 +1493,17 @@ export function App() {
         title,
         coordinates: newCoords,
       });
+
+      // Persist dragged coordinates to Firestore as well as local/GitHub storage.
+      // Without this, the next Firestore/GitHub refresh can restore the old marker
+      // position on the map.
+      const movedLocation = updated.find((item) => item.id === locationId);
+      if (movedLocation) {
+        saveLocationToFirestore(movedLocation).catch((e) =>
+          console.warn('Firestore location coordinate save notice:', e)
+        );
+      }
+
       triggerAutoGitHubSync(updated);
     },
     [selectedLocation, language, triggerAutoGitHubSync]

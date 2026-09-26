@@ -2649,3 +2649,100 @@ export function canTeacherAddFaculty(teacher: TeacherAccount | null): boolean {
   return teacherHasPermission(teacher, 'manage_faculty');
 }
 
+// ==========================================
+// BUG & ISSUE REPORT TARGET EMAIL CONFIG
+// ==========================================
+export const DEFAULT_REPORT_EMAIL = 'stark12300@gmail.com';
+const REPORT_EMAIL_KEY = 'csjmu_report_target_email_v1';
+let inMemoryReportEmail: string | null = null;
+
+export function getStoredReportEmail(): string {
+  if (inMemoryReportEmail && inMemoryReportEmail.includes('@')) {
+    return inMemoryReportEmail;
+  }
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const val = localStorage.getItem(REPORT_EMAIL_KEY);
+      if (val && val.includes('@')) {
+        inMemoryReportEmail = val.trim().toLowerCase();
+        return inMemoryReportEmail;
+      }
+    }
+  } catch {}
+  return DEFAULT_REPORT_EMAIL;
+}
+
+export function setStoredReportEmail(email: string): void {
+  const cleanEmail = email ? email.trim().toLowerCase() : '';
+  if (cleanEmail && cleanEmail.includes('@')) {
+    inMemoryReportEmail = cleanEmail;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(REPORT_EMAIL_KEY, cleanEmail);
+      }
+    } catch {}
+  } else {
+    inMemoryReportEmail = DEFAULT_REPORT_EMAIL;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(REPORT_EMAIL_KEY);
+      }
+    } catch {}
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(
+        new CustomEvent('csjmu_report_email_changed', {
+          detail: { email: inMemoryReportEmail },
+        })
+      );
+    } catch {}
+  }
+}
+
+export async function fetchRemoteReportEmail(): Promise<string> {
+  try {
+    const res = await fetch('/api/app/report-config');
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.targetEmail && typeof data.targetEmail === 'string' && data.targetEmail.includes('@')) {
+        setStoredReportEmail(data.targetEmail);
+        return data.targetEmail.trim().toLowerCase();
+      }
+    }
+  } catch (e) {
+    // Non-fatal, use stored local value
+  }
+  return getStoredReportEmail();
+}
+
+export async function updateRemoteReportEmail(newEmail: string): Promise<{ success: boolean; message?: string }> {
+  const cleanEmail = newEmail.trim().toLowerCase();
+  setStoredReportEmail(cleanEmail);
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...getAdminAuthHeaders(),
+    };
+    const res = await fetch('/api/admin/report-config', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ targetEmail: cleanEmail }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, message: data.message || 'Report email updated successfully.' };
+    } else {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, message: err.message || 'Server rejected email update.' };
+    }
+  } catch (err: any) {
+    // If server route not responding (e.g. static dev), still stored locally
+    return { success: true, message: 'Saved locally to browser storage.' };
+  }
+}
+
+

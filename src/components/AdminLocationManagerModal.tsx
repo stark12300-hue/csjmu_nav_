@@ -44,6 +44,11 @@ import {
   getDeletedFacultyIds,
   getDeletedCourseIds,
   getStoredTeacherAccounts,
+  getStoredReportEmail,
+  DEFAULT_REPORT_EMAIL,
+  fetchRemoteReportEmail,
+  updateRemoteReportEmail,
+  getAdminAuthHeaders,
 } from '../utils/storage';
 import { loginRemoteTeacher } from '../utils/teacherRemote';
 import { AdminFacultyManager } from './admin/AdminFacultyManager';
@@ -180,6 +185,14 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
   const [isSavingApk, setIsSavingApk] = useState(false);
   const [apkSaveSuccess, setApkSaveSuccess] = useState<string | null>(null);
 
+  // Bug & Issue Report Target Email Management State
+  const [reportEmailInput, setReportEmailInput] = useState<string>(() => getStoredReportEmail());
+  const [currentConfiguredEmail, setCurrentConfiguredEmail] = useState<string>(() => getStoredReportEmail());
+  const [isSavingReportEmail, setIsSavingReportEmail] = useState(false);
+  const [reportEmailSaveSuccess, setReportEmailSaveSuccess] = useState<string | null>(null);
+  const [reportEmailError, setReportEmailError] = useState<string | null>(null);
+  const [receivedReportsCount, setReceivedReportsCount] = useState<number | null>(null);
+
   const t = TRANSLATIONS[language];
 
   // Refresh lockout info on open
@@ -191,7 +204,7 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
     }
   }, [isOpen]);
 
-  // Fetch APK configuration on admin unlock
+  // Fetch APK configuration and report email config on admin unlock
   useEffect(() => {
     if (isOpen && isAdminUnlocked) {
       fetch('/api/app/apk-info')
@@ -205,6 +218,31 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
               downloadUrl: data.downloadUrl,
             });
             setApkCustomUrl(data.customDownloadUrl || '');
+          }
+        })
+        .catch(() => {});
+
+      // Fetch active report email
+      fetchRemoteReportEmail()
+        .then((email) => {
+          if (email && email.includes('@')) {
+            setCurrentConfiguredEmail(email);
+            setReportEmailInput(email);
+          }
+        })
+        .catch(() => {});
+
+      // Fetch bug reports stats
+      fetch('/api/bug-reports', {
+        headers: getAdminAuthHeaders(),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && typeof data.total === 'number') {
+            setReceivedReportsCount(data.total);
+          }
+          if (data?.targetEmail && typeof data.targetEmail === 'string' && data.targetEmail.includes('@')) {
+            setCurrentConfiguredEmail(data.targetEmail);
           }
         })
         .catch(() => {});
@@ -230,6 +268,59 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
       console.warn('Failed to save apk config:', e);
     } finally {
       setIsSavingApk(false);
+    }
+  };
+
+  const handleSaveReportEmail = async () => {
+    setReportEmailError(null);
+    setReportEmailSaveSuccess(null);
+
+    const emailToSave = reportEmailInput.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailToSave)) {
+      setReportEmailError(
+        language === 'hi'
+          ? 'कृपया एक मान्य ईमेल पता दर्ज करें (उदा: admin@csjmu.ac.in)'
+          : 'Please enter a valid email address (e.g. admin@csjmu.ac.in)'
+      );
+      return;
+    }
+
+    setIsSavingReportEmail(true);
+    try {
+      const res = await updateRemoteReportEmail(emailToSave);
+      setCurrentConfiguredEmail(emailToSave);
+      setReportEmailSaveSuccess(
+        language === 'hi'
+          ? `बग रिपोर्ट ईमेल सफलतापूर्वक बदलकर "${emailToSave}" कर दिया गया!`
+          : `Report recipient email updated to "${emailToSave}" successfully!`
+      );
+      setTimeout(() => setReportEmailSaveSuccess(null), 5000);
+    } catch (err: any) {
+      setReportEmailError(err?.message || 'Failed to update email');
+    } finally {
+      setIsSavingReportEmail(false);
+    }
+  };
+
+  const handleResetReportEmail = async () => {
+    setReportEmailError(null);
+    setReportEmailSaveSuccess(null);
+    setIsSavingReportEmail(true);
+    try {
+      await updateRemoteReportEmail(DEFAULT_REPORT_EMAIL);
+      setReportEmailInput(DEFAULT_REPORT_EMAIL);
+      setCurrentConfiguredEmail(DEFAULT_REPORT_EMAIL);
+      setReportEmailSaveSuccess(
+        language === 'hi'
+          ? `ईमेल पुनः डिफ़ॉल्ट (${DEFAULT_REPORT_EMAIL}) पर सेट कर दिया गया!`
+          : `Email reset to default (${DEFAULT_REPORT_EMAIL}) successfully!`
+      );
+      setTimeout(() => setReportEmailSaveSuccess(null), 5000);
+    } catch (err: any) {
+      setReportEmailError(err?.message || 'Failed to reset email');
+    } finally {
+      setIsSavingReportEmail(false);
     }
   };
 
@@ -981,6 +1072,130 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
                             : 'Reposition any campus pin directly by dragging on map'}
                         </p>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Bug & Issue Report Target Email Management Card */}
+                  <div className="p-4 bg-white border border-zinc-200 shadow-2xs rounded-2xl space-y-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-700 border border-blue-300 flex items-center justify-center font-bold shrink-0">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+                            <span>{language === 'hi' ? 'बग रिपोर्ट व समस्या ईमेल प्रबंधन' : 'Bug Report & Issue Recipient Email'}</span>
+                          </h4>
+                          <p className="text-[11px] text-zinc-500">
+                            {language === 'hi'
+                              ? 'छात्रों द्वारा "समस्या रिपोर्ट करें" (Report Bug) से भेजी जाने वाली सभी शिकायतें इस ईमेल पर प्राप्त होंगी'
+                              : 'All bug reports, map corrections, and student complaints will be forwarded to this address'}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full flex items-center gap-1 border shrink-0 ${
+                          currentConfiguredEmail === DEFAULT_REPORT_EMAIL
+                            ? 'bg-blue-50 text-blue-800 border-blue-200'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        {currentConfiguredEmail === DEFAULT_REPORT_EMAIL ? 'Default Mail' : 'Custom Mail'}
+                      </span>
+                    </div>
+
+                    {/* Active Email Info Bar */}
+                    <div className="p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider shrink-0">
+                          {language === 'hi' ? 'वर्तमान सक्रिय ईमेल:' : 'Current Active Email:'}
+                        </span>
+                        <span className="font-mono font-bold text-zinc-900 truncate">
+                          {currentConfiguredEmail}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {receivedReportsCount !== null && (
+                          <span className="px-2 py-0.5 bg-zinc-200/70 text-zinc-700 font-bold text-[11px] rounded-lg">
+                            {language === 'hi' ? `प्राप्त रिपोर्ट्स: ${receivedReportsCount}` : `Reports logged: ${receivedReportsCount}`}
+                          </span>
+                        )}
+                        <a
+                          href={`mailto:${currentConfiguredEmail}?subject=CSJMU%20Map%20Report%20Test&body=This%20is%20a%20test%20email%20verification`}
+                          className="px-2 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-bold rounded-lg flex items-center gap-1 transition border border-zinc-200"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>{language === 'hi' ? 'टेस्ट ड्राफ्ट' : 'Test Mail'}</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Input Field to Change Email */}
+                    <div className="space-y-1.5 pt-0.5">
+                      <label className="block text-xs font-bold text-zinc-700">
+                        {language === 'hi'
+                          ? 'शिकायत प्राप्त करने हेतु ईमेल पता बदलें (Change Recipient Email):'
+                          : 'Change Bug & Feedback Recipient Email:'}
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                          <Mail className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="email"
+                            value={reportEmailInput}
+                            onChange={(e) => {
+                              setReportEmailInput(e.target.value);
+                              if (reportEmailError) setReportEmailError(null);
+                            }}
+                            placeholder="admin@csjmu.ac.in or your-email@gmail.com"
+                            className="w-full pl-8.5 pr-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs font-mono"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={handleSaveReportEmail}
+                            disabled={isSavingReportEmail || reportEmailInput.trim().toLowerCase() === currentConfiguredEmail}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer flex items-center gap-1.5"
+                          >
+                            {isSavingReportEmail ? (
+                              <span>...</span>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{language === 'hi' ? 'ईमेल सहेजें' : 'Save Email'}</span>
+                              </>
+                            )}
+                          </button>
+                          {currentConfiguredEmail !== DEFAULT_REPORT_EMAIL && (
+                            <button
+                              type="button"
+                              onClick={handleResetReportEmail}
+                              disabled={isSavingReportEmail}
+                              className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold rounded-xl transition border border-zinc-200 shadow-2xs cursor-pointer flex items-center gap-1"
+                              title="Reset back to stark12300@gmail.com"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-zinc-500" />
+                              <span className="hidden sm:inline">{language === 'hi' ? 'डिफ़ॉल्ट रीसेट' : 'Reset'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Error & Success Feedback */}
+                      {reportEmailError && (
+                        <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 animate-fade-in pt-0.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{reportEmailError}</span>
+                        </p>
+                      )}
+                      {reportEmailSaveSuccess && (
+                        <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 animate-fade-in pt-0.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>{reportEmailSaveSuccess}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 

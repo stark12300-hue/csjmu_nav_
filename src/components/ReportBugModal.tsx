@@ -19,6 +19,7 @@ import {
 import { CampusLocation, Language } from '../types';
 import { TRANSLATIONS } from '../translations';
 import { saveBugReportToFirestore } from '../services/firebase';
+import { getStoredReportEmail, fetchRemoteReportEmail } from '../utils/storage';
 
 interface ReportBugModalProps {
   isOpen: boolean;
@@ -42,8 +43,34 @@ export const ReportBugModal: React.FC<ReportBugModalProps> = ({
   language,
   selectedLocation,
 }) => {
-  const TARGET_EMAIL = 'stark12300@gmail.com';
+  const [targetEmail, setTargetEmail] = useState<string>(() => getStoredReportEmail());
   const t = TRANSLATIONS[language];
+
+  // Refresh target email on open and listen for changes from admin panel
+  useEffect(() => {
+    if (isOpen) {
+      setTargetEmail(getStoredReportEmail());
+      fetchRemoteReportEmail()
+        .then((remoteEmail) => {
+          if (remoteEmail && remoteEmail.includes('@')) {
+            setTargetEmail(remoteEmail);
+          }
+        })
+        .catch(() => {});
+    }
+
+    const handleEmailChanged = (e: any) => {
+      const newEmail = e?.detail?.email;
+      if (newEmail && typeof newEmail === 'string' && newEmail.includes('@')) {
+        setTargetEmail(newEmail);
+      }
+    };
+
+    window.addEventListener('csjmu_report_email_changed', handleEmailChanged);
+    return () => {
+      window.removeEventListener('csjmu_report_email_changed', handleEmailChanged);
+    };
+  }, [isOpen]);
 
   const [category, setCategory] = useState<IssueCategory>('wrong_location');
   const [name, setName] = useState('');
@@ -126,7 +153,7 @@ ${description}
 Timestamp: ${timeStr}
 User Agent: ${navigator.userAgent}
 Screen Resolution: ${window.innerWidth}x${window.innerHeight}
-Target Support Email: ${TARGET_EMAIL}
+Target Support Email: ${targetEmail}
 ===================================================`;
   };
 
@@ -162,7 +189,7 @@ Target Support Email: ${TARGET_EMAIL}
       locationName,
       coordinates: selectedLocation?.coordinates || null,
       description,
-      targetEmail: TARGET_EMAIL,
+      targetEmail,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
     };
@@ -178,7 +205,7 @@ Target Support Email: ${TARGET_EMAIL}
         location: locationName,
         coordinates: selectedLocation?.coordinates || null,
         description,
-        targetEmail: TARGET_EMAIL,
+        targetEmail,
         status: 'open',
       }).catch((e) => console.warn('Firestore bug report notice:', e));
 
@@ -189,12 +216,12 @@ Target Support Email: ${TARGET_EMAIL}
         body: JSON.stringify(reportData),
       }).catch((err) => console.warn('API log warning:', err));
 
-      // 2. Open Native Mail Client with pre-formatted subject and body directed to stark12300@gmail.com
+      // 3. Open Native Mail Client with pre-formatted subject and body directed to targetEmail
       const subject = encodeURIComponent(
         `[CSJMU Map Report] ${categoryLabels[category].en} - ${locationName || 'General'}`
       );
       const body = encodeURIComponent(constructReportBody());
-      const mailtoUrl = `mailto:${TARGET_EMAIL}?subject=${subject}&body=${body}`;
+      const mailtoUrl = `mailto:${targetEmail}?subject=${subject}&body=${body}`;
 
       // Open mail client
       window.location.href = mailtoUrl;
@@ -246,7 +273,7 @@ Target Support Email: ${TARGET_EMAIL}
               </div>
               <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1 font-medium">
                 <span>{language === 'hi' ? 'शिकायत सीधे भेजी जाएगी:' : 'Complaints will be sent to:'}</span>
-                <span className="font-bold text-zinc-900 underline">{TARGET_EMAIL}</span>
+                <span className="font-bold text-zinc-900 underline">{targetEmail}</span>
               </p>
             </div>
           </div>
@@ -274,8 +301,8 @@ Target Support Email: ${TARGET_EMAIL}
                 </h4>
                 <p className="text-xs text-zinc-600 mt-1 max-w-sm mx-auto leading-relaxed">
                   {language === 'hi'
-                    ? `आपकी शिकायत stark12300@gmail.com पर भेजने हेतु आपके ईमेल ऐप में खुल गई है। यदि मेल ऐप नहीं खुला, तो आप नीचे बटन दबाकर शिकायत कॉपी भी कर सकते हैं।`
-                    : `Your complaint is addressed to stark12300@gmail.com. If your email app did not open automatically, you can copy the full report below.`}
+                    ? `आपकी शिकायत ${targetEmail} पर भेजने हेतु आपके ईमेल ऐप में खुल गई है। यदि मेल ऐप नहीं खुला, तो आप नीचे बटन दबाकर शिकायत कॉपी भी कर सकते हैं।`
+                    : `Your complaint is addressed to ${targetEmail}. If your email app did not open automatically, you can copy the full report below.`}
                 </p>
               </div>
 
@@ -423,7 +450,7 @@ Target Support Email: ${TARGET_EMAIL}
                   <Mail className="w-4 h-4 text-zinc-900 shrink-0" />
                   <div className="truncate">
                     <span className="text-[10px] text-zinc-500 font-bold uppercase block">Recipient Email</span>
-                    <span className="font-extrabold text-zinc-950 text-xs">{TARGET_EMAIL}</span>
+                    <span className="font-extrabold text-zinc-950 text-xs">{targetEmail}</span>
                   </div>
                 </div>
 

@@ -310,6 +310,8 @@ fetchJsonFileFromGitHub<any[]>(GITHUB_BUG_REPORTS_PATH).then(({ data }) => {
   }
 }).catch(() => {});
 
+let supportReportEmail = "stark12300@gmail.com";
+
 app.post("/api/report-bug", (req, res) => {
   try {
     const {
@@ -323,7 +325,13 @@ app.post("/api/report-bug", (req, res) => {
       description,
       timestamp,
       userAgent,
+      targetEmail: clientSpecifiedEmail,
     } = req.body;
+
+    const currentEmail = getAdminConfig().reportEmail || supportReportEmail || "stark12300@gmail.com";
+    const finalTargetEmail = clientSpecifiedEmail && typeof clientSpecifiedEmail === "string" && clientSpecifiedEmail.includes("@")
+      ? clientSpecifiedEmail.trim().toLowerCase()
+      : currentEmail;
 
     const report = {
       id: `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -335,7 +343,7 @@ app.post("/api/report-bug", (req, res) => {
       locationName: locationName || "",
       coordinates: coordinates || null,
       description: description || "",
-      targetEmail: "stark12300@gmail.com",
+      targetEmail: finalTargetEmail,
       timestamp: timestamp || new Date().toISOString(),
       userAgent: userAgent || "",
       status: "received",
@@ -344,18 +352,59 @@ app.post("/api/report-bug", (req, res) => {
     bugReportsList.unshift(report);
     savePersistentBugReports(bugReportsList);
 
-    console.log(`[BUG REPORT TO stark12300@gmail.com] Received issue #${report.id}:`, JSON.stringify(report, null, 2));
+    console.log(`[BUG REPORT TO ${finalTargetEmail}] Received issue #${report.id}:`, JSON.stringify(report, null, 2));
 
     res.json({
       success: true,
-      message: "Report logged successfully and persisted to cloud. Forwarding to stark12300@gmail.com",
+      message: `Report logged successfully and persisted. Directed to ${finalTargetEmail}`,
       reportId: report.id,
-      targetEmail: "stark12300@gmail.com",
+      targetEmail: finalTargetEmail,
     });
   } catch (err) {
     console.error("Error processing bug report:", err);
     res.status(500).json({ error: "Failed to record bug report" });
   }
+});
+
+app.get("/api/app/report-config", (req, res) => {
+  const currentEmail = getAdminConfig().reportEmail || supportReportEmail || "stark12300@gmail.com";
+  res.json({
+    success: true,
+    targetEmail: currentEmail,
+  });
+});
+
+app.post("/api/admin/report-config", (req, res) => {
+  if (!isAuthorizedAdmin(req)) {
+    return res.status(401).json({
+      success: false,
+      error: "UNAUTHORIZED",
+      message: "Admin authorization required to configure support & report recipient email.",
+    });
+  }
+
+  const { targetEmail } = req.body || {};
+  if (!targetEmail || typeof targetEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail.trim())) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide a valid recipient email address (e.g. support@csjmu.ac.in).",
+    });
+  }
+
+  const cleaned = targetEmail.trim().toLowerCase();
+  supportReportEmail = cleaned;
+
+  const cfg = getAdminConfig();
+  cfg.reportEmail = cleaned;
+  cfg.lastUpdated = new Date().toISOString();
+  saveAdminConfig(cfg);
+
+  console.log(`[ADMIN CONFIG] Updated bug & issue report target email to: ${cleaned}`);
+  res.json({
+    success: true,
+    targetEmail: cleaned,
+    message: "Report recipient email successfully updated and persisted.",
+  });
 });
 
 app.get("/api/bug-reports", (req, res) => {
@@ -366,9 +415,10 @@ app.get("/api/bug-reports", (req, res) => {
       message: "Admin authorization required to view bug reports.",
     });
   }
+  const currentEmail = getAdminConfig().reportEmail || supportReportEmail || "stark12300@gmail.com";
   res.json({
     success: true,
-    targetEmail: "stark12300@gmail.com",
+    targetEmail: currentEmail,
     total: bugReportsList.length,
     reports: bugReportsList,
   });
@@ -476,7 +526,7 @@ function getMasterAdminPin(): string {
   return String(process.env.ADMIN_PASSWORD || process.env.ADMIN_PIN || process.env.ADMIN_SECRET || "").trim();
 }
 
-function getAdminConfig(): { customPinHash?: string; lastUpdated?: string } {
+function getAdminConfig(): { customPinHash?: string; lastUpdated?: string; reportEmail?: string } {
   try {
     if (fs.existsSync(ADMIN_CONFIG_FILE)) {
       const raw = fs.readFileSync(ADMIN_CONFIG_FILE, "utf-8");
@@ -488,10 +538,10 @@ function getAdminConfig(): { customPinHash?: string; lastUpdated?: string } {
   return {};
 }
 
-function saveAdminConfig(cfg: { customPinHash?: string; lastUpdated?: string }) {
+function saveAdminConfig(cfg: { customPinHash?: string; lastUpdated?: string; reportEmail?: string }) {
   try {
     fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(cfg, null, 2), "utf-8");
-    syncJsonFileToGitHub("data/adminConfig.json", cfg, "Update admin PIN configuration").catch(() => {});
+    syncJsonFileToGitHub("data/adminConfig.json", cfg, "Update admin configuration").catch(() => {});
   } catch (e) {
     console.warn("Could not write admin config:", e);
   }

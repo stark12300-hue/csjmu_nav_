@@ -16,6 +16,7 @@ import {
   getTeachersFromFirestore,
   saveTeacherToFirestore,
   deleteTeacherFromFirestore,
+  getLastFirestoreErrorMessage,
 } from '../services/firebase';
 
 /**
@@ -203,7 +204,7 @@ export async function createRemoteTeacherAccount(account: TeacherAccount): Promi
     if (!saved) {
       return {
         success: false,
-        message: 'Registration could not be saved to Firestore. Please check your connection and try again.',
+        message: `Firestore save failed: ${getLastFirestoreErrorMessage() || 'Unknown Firestore error. Please try again.'}`,
       };
     }
 

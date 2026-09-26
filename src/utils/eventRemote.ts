@@ -99,9 +99,6 @@ export async function fetchRemoteEvents(): Promise<CampusEvent[]> {
 export async function postRemoteEvent(
   eventData: CampusEvent
 ): Promise<{ success: boolean; message?: string; event?: CampusEvent; events?: CampusEvent[] }> {
-  // Always mirror directly to Firestore cloud database
-  saveEventToFirestore(eventData).catch((e) => console.warn('Firestore event save notice:', e));
-
   try {
     const headers = {
       'Content-Type': 'application/json',
@@ -116,22 +113,44 @@ export async function postRemoteEvent(
     });
 
     const data = await res.json().catch(() => ({}));
+
+    // The API may change a student's pending submission into an approved/live
+    // event for an authenticated teacher/admin. Persist that FINAL event to
+    // Firestore so a later Vercel/GitHub refresh cannot restore the old state.
+    const finalEvent = (res.ok && data?.success && data?.event)
+      ? (data.event as CampusEvent)
+      : eventData;
+    const firestoreSaved = await saveEventToFirestore(finalEvent);
+
     if (res.ok && data?.success) {
-      if (Array.isArray(data.events)) {
-        syncLocalEventsWithRemote(data.events);
-      }
+      const firestoreEvents = await getEventsFromFirestore();
+      const serverEvents = Array.isArray(data.events) ? data.events as CampusEvent[] : [];
+      const merged = mergeEventSources(serverEvents, firestoreEvents);
+      syncLocalEventsWithRemote(merged);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('csjmu_events_synced', {
-            detail: { event: data.event, events: data.events },
+            detail: { event: finalEvent, events: merged },
           })
         );
       }
       return {
         success: true,
         message: data.message,
-        event: data.event,
-        events: data.events || getStoredEvents(),
+        event: finalEvent,
+        events: merged,
+      };
+    }
+
+    if (firestoreSaved) {
+      const firestoreEvents = await getEventsFromFirestore();
+      const merged = mergeEventSources([], firestoreEvents);
+      syncLocalEventsWithRemote(merged);
+      return {
+        success: true,
+        message: 'Event saved to Firestore.',
+        event: finalEvent,
+        events: merged,
       };
     }
 

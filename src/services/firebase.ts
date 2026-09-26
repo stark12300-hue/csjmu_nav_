@@ -378,10 +378,18 @@ export async function saveTeacherToFirestore(teacher: TeacherAccount): Promise<b
     // Firestore rejects undefined field values unless ignoreUndefinedProperties
     // is enabled. TeacherAccount has several optional fields, so sanitize them
     // before every write.
+    const teacherRef = doc(db, 'teacher_accounts', teacher.id);
     await setDoc(
-      doc(db, 'teacher_accounts', teacher.id),
+      teacherRef,
       stripUndefinedValues(teacher)
     );
+
+    // Confirm the write reached the Firestore server, not just the local
+    // Firestore client cache. This is important for cross-device approvals.
+    const confirmed = await getDocFromServer(teacherRef);
+    if (!confirmed.exists()) {
+      throw new Error('Teacher request was not found on the Firestore server after saving.');
+    }
     return true;
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);

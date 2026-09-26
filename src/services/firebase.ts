@@ -16,7 +16,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { CampusEvent, CampusLocation, TeacherAccount } from '../types';
+import { CampusEvent, CampusLocation, FacultyMember, CourseDepartmentMapping, TeacherAccount } from '../types';
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -211,6 +211,106 @@ export function subscribeLocationsFromFirestore(onUpdate: (locations: CampusLoca
     (err) => {
       handleFirestoreError(err, OperationType.LIST, colPath);
     }
+  );
+}
+
+// ----------------------------------------------------
+// Faculty Directory Firestore Operations
+// ----------------------------------------------------
+export async function getFacultyFromFirestore(): Promise<FacultyMember[]> {
+  const colPath = 'faculty_members';
+  try {
+    const snap = await getDocs(collection(db, colPath));
+    const faculty: FacultyMember[] = [];
+    snap.forEach((d) => faculty.push(d.data() as FacultyMember));
+    return faculty;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, colPath);
+    return [];
+  }
+}
+
+export async function saveFacultyToFirestore(faculty: FacultyMember): Promise<boolean> {
+  const path = `faculty_members/${faculty.id}`;
+  try {
+    await setDoc(doc(db, 'faculty_members', faculty.id), stripUndefinedValues(faculty));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+    return false;
+  }
+}
+
+export async function batchSaveFacultyToFirestore(faculty: FacultyMember[]): Promise<boolean> {
+  try {
+    const batch = writeBatch(db);
+    faculty.slice(0, 450).forEach((member) => {
+      batch.set(doc(db, 'faculty_members', member.id), stripUndefinedValues(member));
+    });
+    await batch.commit();
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'faculty_members/batch');
+    return false;
+  }
+}
+
+export function subscribeFacultyFromFirestore(onUpdate: (faculty: FacultyMember[]) => void): () => void {
+  const colPath = 'faculty_members';
+  return onSnapshot(
+    collection(db, colPath),
+    (snap) => onUpdate(snap.docs.map((d) => d.data() as FacultyMember)),
+    (err) => handleFirestoreError(err, OperationType.LIST, colPath)
+  );
+}
+
+// ----------------------------------------------------
+// Department / Course Firestore Operations
+// ----------------------------------------------------
+export async function getCoursesFromFirestore(): Promise<CourseDepartmentMapping[]> {
+  const colPath = 'course_departments';
+  try {
+    const snap = await getDocs(collection(db, colPath));
+    const courses: CourseDepartmentMapping[] = [];
+    snap.forEach((d) => courses.push(d.data() as CourseDepartmentMapping));
+    return courses;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, colPath);
+    return [];
+  }
+}
+
+export async function saveCourseToFirestore(course: CourseDepartmentMapping): Promise<boolean> {
+  const path = `course_departments/${course.courseId}`;
+  try {
+    await setDoc(doc(db, 'course_departments', course.courseId), stripUndefinedValues(course));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+    return false;
+  }
+}
+
+export async function batchSaveCoursesToFirestore(courses: CourseDepartmentMapping[]): Promise<boolean> {
+  try {
+    const batch = writeBatch(db);
+    courses.slice(0, 450).forEach((course) => {
+      batch.set(doc(db, 'course_departments', course.courseId), stripUndefinedValues(course));
+    });
+    await batch.commit();
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'course_departments/batch');
+    return false;
+  }
+}
+
+export function subscribeCoursesFromFirestore(onUpdate: (courses: CourseDepartmentMapping[]) => void): () => void {
+  const colPath = 'course_departments';
+  return onSnapshot(
+    collection(db, colPath),
+    (snap) => onUpdate(snap.docs.map((d) => d.data() as CourseDepartmentMapping)),
+    (err) => handleFirestoreError(err, OperationType.LIST, colPath)
   );
 }
 

@@ -21,12 +21,11 @@ import {
   Info,
   ShieldCheck,
   Building,
-  RefreshCw,
   Globe,
   FileText
 } from 'lucide-react';
 import { CampusEvent, EventCategory, CampusLocation, Language } from '../types';
-import { getInterestedEventIds, toggleEventInterest, syncOfficialCollegeEvents, getCollegeLastSyncTime } from '../utils/storage';
+import { getInterestedEventIds, toggleEventInterest } from '../utils/storage';
 import { fetchRemoteEvents } from '../utils/eventRemote';
 
 export interface EventsModalProps {
@@ -74,9 +73,6 @@ export const EventsModal: React.FC<EventsModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showPastEvents, setShowPastEvents] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncStr, setLastSyncStr] = useState<string>(() => getCollegeLastSyncTime() || '');
-  const [syncStatusToast, setSyncStatusToast] = useState<string | null>(null);
   const [interestedIds, setInterestedIds] = useState<string[]>(() => {
     try {
       return getInterestedEventIds();
@@ -94,76 +90,6 @@ export const EventsModal: React.FC<EventsModalProps> = ({
     if (Array.isArray(campusLocations) && campusLocations.length > 0) return campusLocations;
     return [];
   }, [locations, campusLocations]);
-
-  // Trigger auto-sync on modal open: fetches cloud events and updates official feed
-  useEffect(() => {
-    if (!isOpen) return;
-    const runAutoSync = async () => {
-      try {
-        // 1. Fetch latest approved events from server (/api/events)
-        const remoteEvents = await fetchRemoteEvents();
-        if (remoteEvents && Array.isArray(remoteEvents) && remoteEvents.length > 0 && onSyncCollegeEvents) {
-          onSyncCollegeEvents(remoteEvents);
-        }
-        // 2. Sync official college feed
-        const res = await syncOfficialCollegeEvents(false);
-        if (res.success && res.events && onSyncCollegeEvents) {
-          onSyncCollegeEvents(res.events);
-          if (res.lastSync) setLastSyncStr(res.lastSync);
-        }
-      } catch (err) {
-        console.warn('Auto sync check error:', err);
-      }
-    };
-    runAutoSync();
-  }, [isOpen, onSyncCollegeEvents]);
-
-  // Handle manual sync button click
-  const handleManualCollegeSync = async () => {
-    setIsSyncing(true);
-    setSyncStatusToast(activeLang === 'hi' ? 'क्लाउड सर्वर से ताज़ा इवेंट्स लोड हो रहे हैं...' : 'Syncing live events from cloud server...');
-    try {
-      // 1. First fetch latest campus events from cloud server
-      const remoteEvents = await fetchRemoteEvents();
-      if (remoteEvents && Array.isArray(remoteEvents) && remoteEvents.length > 0 && onSyncCollegeEvents) {
-        onSyncCollegeEvents(remoteEvents);
-      }
-
-      // 2. Sync official college feed from csjmu.ac.in
-      const res = await syncOfficialCollegeEvents(true);
-      if (res.success && res.events) {
-        if (onSyncCollegeEvents) {
-          onSyncCollegeEvents(res.events);
-        }
-        if (res.lastSync) setLastSyncStr(res.lastSync);
-        setSyncStatusToast(
-          activeLang === 'hi'
-            ? `✅ ताज़ा स्वीकृत इवेंट्स और आधिकारिक सूचनाएं अपडेट हो गईं!`
-            : `✅ Live approved events and official notices updated!`
-        );
-      } else {
-        setSyncStatusToast(
-          activeLang === 'hi' ? 'सभी इवेंट्स क्लाउड सर्वर से अपडेटेड हैं।' : 'Events are synchronized with cloud server.'
-        );
-      }
-    } catch (err) {
-      setSyncStatusToast(activeLang === 'hi' ? 'सिंक पूर्ण हुआ' : 'Sync completed');
-    } finally {
-      setIsSyncing(false);
-      setTimeout(() => setSyncStatusToast(null), 4000);
-    }
-  };
-
-  // Format last sync time string
-  const formatSyncDisplayTime = (isoString?: string) => {
-    if (!isoString) return activeLang === 'hi' ? 'दैनिक स्वचालित सिंक सक्रिय' : 'Daily Auto-Sync Active';
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + d.toLocaleDateString();
-    } catch {
-      return activeLang === 'hi' ? 'आज 09:30 AM' : 'Today 09:30 AM';
-    }
-  };
 
   // Handle escape key
   useEffect(() => {
@@ -436,22 +362,6 @@ export const EventsModal: React.FC<EventsModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              {syncStatusToast && (
-                <span className="text-[10px] sm:text-[11px] text-blue-800 font-bold truncate animate-fade-in">
-                  {syncStatusToast}
-                </span>
-              )}
-              <button
-                type="button"
-                id="btn-sync-college-events"
-                onClick={handleManualCollegeSync}
-                disabled={isSyncing}
-                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 text-emerald-800 border border-emerald-500/30 rounded-xl text-[11px] font-bold shadow-2xs transition active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
-                title="Sync latest live notices & calendar events from csjmu.ac.in"
-              >
-                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin text-emerald-600' : ''}`} />
-                <span>{isSyncing ? (activeLang === 'hi' ? 'सिंक हो रहा है...' : 'Syncing...') : (activeLang === 'hi' ? 'ताज़ा करें' : 'Sync Now')}</span>
-              </button>
             </div>
           </div>
 

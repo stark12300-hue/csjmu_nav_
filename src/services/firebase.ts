@@ -321,7 +321,7 @@ export function subscribeCoursesFromFirestore(onUpdate: (courses: CourseDepartme
 export async function getTeachersFromFirestore(): Promise<TeacherAccount[]> {
   const colPath = 'teacher_accounts';
   try {
-    const snap = await getDocs(collection(db, colPath));
+    const snap = await getDocsFromServer(collection(db, colPath));
     const teachers: TeacherAccount[] = [];
     snap.forEach((d) => {
       teachers.push(d.data() as TeacherAccount);

@@ -2,13 +2,57 @@
   "framework": "vite",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/csjmu_nav.apk", "destination": "/api/app/download-apk" },
-    { "source": "/api/events", "destination": "/api/events/index" },
-    { "source": "/api/events/:id", "destination": "/api/events/[id]" },
-    { "source": "/api/teachers/login", "destination": "/api/teacher/login" },
-    { "source": "/api/teachers/session", "destination": "/api/teacher/session" },
-    { "source": "/api/teachers/reset-password", "destination": "/api/teacher/reset-password" },
-    { "source": "/api/teachers/logout", "destination": "/api/teacher/logout" },
-    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
+    {
+      "source": "/csjmu_nav.apk",
+      "destination": "/api/app/download-apk"
+    },
+    {
+      "source": "/api/teachers",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/teacher/login",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/teacher/session",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/teacher/reset-password",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/teacher/logout",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/events",
+      "destination": "/api/events/index"
+    },
+    {
+      "source": "/api/events/:id",
+      "destination": "/api/events/[id]"
+    },
+    {
+      "source": "/api/teachers/login",
+      "destination": "/api/teacher/login"
+    },
+    {
+      "source": "/api/teachers/session",
+      "destination": "/api/teacher/session"
+    },
+    {
+      "source": "/api/teachers/reset-password",
+      "destination": "/api/teacher/reset-password"
+    },
+    {
+      "source": "/api/teachers/logout",
+      "destination": "/api/teacher/logout"
+    },
+    {
+      "source": "/((?!api/.*).*)",
+      "destination": "/index.html"
+    }
   ]
 }

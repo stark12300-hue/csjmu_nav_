@@ -1400,9 +1400,12 @@ export function App() {
         // 1. Sync from server persistent storage (locations, department photos, faculty, courses)
         const updatedFromServer = await syncCampusDataWithServerBackup();
         if (updatedFromServer && !cancelled) {
+          // Locations/events may still use the server backup, but faculty and
+          // department/course data are now persisted in Firestore. Do not
+          // hydrate those two lists from the older backup snapshot, because
+          // that could immediately overwrite a fresh Admin edit with stale
+          // data from the server/GitHub backup.
           setLocations(getSavedLocationsList());
-          setFacultyList(getStoredFaculty());
-          setCoursesList(getStoredCourses());
           setEvents(getStoredEvents());
         }
 

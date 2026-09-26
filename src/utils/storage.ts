@@ -559,8 +559,16 @@ export async function checkAdminPasswordAsync(password: string): Promise<{
     return { success: false, message: 'PIN is required' };
   }
 
-  // Pre-validate locally against official master PIN and custom PIN hash
-  const isLocallyValid = isLocalPinValid(trimmed);
+  // Firestore is the cross-device source of truth for a changed custom PIN.
+  // The built-in master PIN remains available as an emergency fallback.
+  let isLocallyValid = isLocalPinValid(trimmed);
+  try {
+    const remotePinHash = await getAdminPinHashFromFirestore();
+    if (remotePinHash) {
+      isLocallyValid = remotePinHash === hashAdminSecret(trimmed);
+    }
+  } catch {}
+
 
   // Attempt server verification with an abort controller timeout (3500ms)
   try {

@@ -1128,6 +1128,8 @@ export function App() {
   const handleSyncAllToFirestore = useCallback(async (): Promise<boolean> => {
     try {
       const locs = getSavedLocationsList();
+      const fac = getStoredFaculty();
+      const crs = getStoredCourses();
       const evts = getStoredEvents();
       const teachers = getStoredTeacherAccounts();
 
@@ -1143,8 +1145,8 @@ export function App() {
 
       showToast(
         language === 'hi'
-          ? 'सभी 4 कलेक्शंस Firebase Firestore में सफलतापूर्वक सिंक हो गए!'
-          : 'All collections successfully synced to Firebase Firestore!'
+          ? 'सभी CSJMU डेटा Firebase Firestore में सफलतापूर्वक सिंक हो गया!'
+          : 'All CSJMU data successfully synced to Firebase Firestore!'
       );
       return true;
     } catch (err) {

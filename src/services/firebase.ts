@@ -395,6 +395,39 @@ export async function deleteTeacherFromFirestore(teacherId: string): Promise<boo
   }
 }
 
+export async function deleteLocationFromFirestore(locationId: string): Promise<boolean> {
+  const path = `campus_locations/${locationId}`;
+  try {
+    await deleteDoc(doc(db, 'campus_locations', locationId));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+    return false;
+  }
+}
+
+export async function deleteFacultyFromFirestore(facultyId: string): Promise<boolean> {
+  const path = `faculty_members/${facultyId}`;
+  try {
+    await deleteDoc(doc(db, 'faculty_members', facultyId));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+    return false;
+  }
+}
+
+export async function deleteCourseFromFirestore(courseId: string): Promise<boolean> {
+  const path = `course_departments/${courseId}`;
+  try {
+    await deleteDoc(doc(db, 'course_departments', courseId));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+    return false;
+  }
+}
+
 // ----------------------------------------------------
 // Bug Reports Firestore Operations
 // ----------------------------------------------------

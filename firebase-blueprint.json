@@ -5,20 +5,35 @@
       "description": "Notice or event taking place at CSJM University",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
+        "id": { "type": "string", "maxLength": 128 },
         "title": { "type": "string", "maxLength": 200 },
-        "description": { "type": "string", "maxLength": 2000 },
+        "hindiTitle": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 5000 },
+        "hindiDescription": { "type": "string", "maxLength": 5000 },
         "category": { "type": "string", "maxLength": 50 },
         "startDate": { "type": "string", "maxLength": 30 },
         "endDate": { "type": "string", "maxLength": 30 },
         "time": { "type": "string", "maxLength": 50 },
         "venue": { "type": "string", "maxLength": 200 },
-        "posterImage": { "type": "string", "maxLength": 1000 },
+        "venueLocationId": { "type": "string", "maxLength": 100 },
+        "posterImage": { "type": "string", "maxLength": 50000 },
         "organizer": { "type": "string", "maxLength": 150 },
+        "contactPhone": { "type": "string", "maxLength": 30 },
         "contactEmail": { "type": "string", "maxLength": 100 },
+        "registrationUrl": { "type": "string", "maxLength": 500 },
+        "submittedByStudentName": { "type": "string", "maxLength": 150 },
+        "studentRollNo": { "type": "string", "maxLength": 50 },
+        "studentCourseBranch": { "type": "string", "maxLength": 100 },
+        "studentMobile": { "type": "string", "maxLength": 30 },
+        "postedByTeacherId": { "type": "string", "maxLength": 128 },
+        "submittedByTeacherName": { "type": "string", "maxLength": 150 },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "isLive": { "type": "boolean" },
         "likesCount": { "type": "number" },
+        "isCustom": { "type": "boolean" },
+        "isOfficialCollegeFeed": { "type": "boolean" },
+        "sourceUrl": { "type": "string", "maxLength": 500 },
+        "circularUrl": { "type": "string", "maxLength": 500 },
         "createdAt": { "type": "number" }
       },
       "required": ["id", "title"]
@@ -28,30 +43,92 @@
       "description": "Geographical location, department, building or facility on campus",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
+        "id": { "type": "string", "maxLength": 128 },
         "title": { "type": "string", "maxLength": 150 },
         "hindiTitle": { "type": "string", "maxLength": 150 },
         "category": { "type": "string", "maxLength": 50 },
         "coordinates": { "type": "array" },
         "block": { "type": "string", "maxLength": 100 },
         "floor": { "type": "string", "maxLength": 50 },
-        "image": { "type": "string", "maxLength": 2000 },
-        "description": { "type": "string", "maxLength": 2000 },
-        "hindiDescription": { "type": "string", "maxLength": 2000 },
+        "roomNumber": { "type": "string", "maxLength": 50 },
+        "image": { "type": "string", "maxLength": 50000 },
+        "description": { "type": "string", "maxLength": 5000 },
+        "hindiDescription": { "type": "string", "maxLength": 5000 },
         "facilities": { "type": "array" },
-        "isCustom": { "type": "boolean" }
+        "coursesOffered": { "type": "array" },
+        "isCustom": { "type": "boolean" },
+        "addedBy": { "type": "string", "maxLength": 100 },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "number" },
+        "likes": { "type": "number" }
       },
       "required": ["id", "title", "coordinates"]
+    },
+    "TeacherAccount": {
+      "title": "TeacherAccount",
+      "description": "Faculty profile and verification credentials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "hindiName": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 150 },
+        "passwordHash": { "type": "string", "maxLength": 200 },
+        "department": { "type": "string", "maxLength": 150 },
+        "departmentId": { "type": "string", "maxLength": 100 },
+        "designation": { "type": "string", "maxLength": 100 },
+        "cabinRoom": { "type": "string", "maxLength": 100 },
+        "floor": { "type": "string", "maxLength": 50 },
+        "buildingName": { "type": "string", "maxLength": 150 },
+        "buildingId": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "officeHours": { "type": "string", "maxLength": 100 },
+        "subjects": { "type": "array" },
+        "avatar": { "type": "string", "maxLength": 50000 },
+        "idCardPhoto": { "type": "string", "maxLength": 100000 },
+        "idCardSubmittedAt": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "suspended"] },
+        "rejectionReason": { "type": "string", "maxLength": 500 },
+        "approvedAt": { "type": "number" },
+        "approvedBy": { "type": "string", "maxLength": 100 },
+        "permissions": { "type": "array" },
+        "createdAt": { "type": "number" },
+        "lastLoginAt": { "type": "number" }
+      },
+      "required": ["id", "name", "email", "department", "status"]
+    },
+    "BugReport": {
+      "title": "BugReport",
+      "description": "User reported campus or navigation issues",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 5000 },
+        "location": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["open", "investigating", "resolved"] },
+        "createdAt": { "type": "number" },
+        "userContact": { "type": "string", "maxLength": 150 }
+      },
+      "required": ["id", "description"]
     }
   },
   "firestore": {
     "/campus_events/{eventId}": {
       "schema": "CampusEvent",
-      "description": "College events and notices"
+      "description": "College events, circulars, and notices"
     },
     "/campus_locations/{locationId}": {
       "schema": "CampusLocation",
       "description": "Campus departments, buildings, and navigation waypoints"
+    },
+    "/teacher_accounts/{teacherId}": {
+      "schema": "TeacherAccount",
+      "description": "Teacher profiles and verification credentials"
+    },
+    "/bug_reports/{reportId}": {
+      "schema": "BugReport",
+      "description": "Reported bugs and suggestions"
     }
   }
 }

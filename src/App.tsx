@@ -104,6 +104,14 @@ import {
   deleteRemoteEvent,
   fetchRemoteEvents,
 } from './utils/eventRemote';
+import {
+  testFirestoreConnection,
+  subscribeEventsFromFirestore,
+  batchSaveLocationsToFirestore,
+  saveEventToFirestore,
+  saveTeacherToFirestore,
+} from './services/firebase';
+import { getStoredTeacherAccounts } from './utils/storage';
 import { EventsModal } from './components/EventsModal';
 import { SubmitEventModal } from './components/SubmitEventModal';
 import { TRANSLATIONS } from './translations';
@@ -391,6 +399,31 @@ export function App() {
   // Fetch GitHub environment status on startup
   useEffect(() => {
     fetchServerGitHubConfig().catch((e) => console.warn('Could not check server github config on boot:', e));
+  }, []);
+
+  // Firebase Firestore Real-Time Synchronization & Connection
+  useEffect(() => {
+    testFirestoreConnection().then((ok) => {
+      if (ok) {
+        console.log('Firebase Firestore live connection established.');
+      }
+    });
+
+    const unsubscribe = subscribeEventsFromFirestore((liveEvents) => {
+      if (liveEvents && liveEvents.length > 0) {
+        setEvents((prev) => {
+          // Merge or update events
+          const map = new Map<string, CampusEvent>();
+          for (const ev of prev) map.set(ev.id, ev);
+          for (const ev of liveEvents) map.set(ev.id, ev);
+          return Array.from(map.values());
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleTriggerInstall = async () => {
@@ -1016,12 +1049,47 @@ export function App() {
             customMessage || `Auto-sync CSJMU campus data updates [${new Date().toISOString()}]`
           ).catch((e) => console.warn('Background GitHub auto-push failed:', e));
         }
+
+        // 3. Immediately replicate to Google Firebase Firestore cloud database
+        batchSaveLocationsToFirestore(locs).catch((e) => console.warn('Firestore locations auto-sync:', e));
       } catch (err) {
         console.warn('Campus data auto-sync failed:', err);
       }
     },
     []
   );
+
+  // Manual Trigger to Sync All Campus Data, Events & Teachers to Firebase Firestore
+  const handleSyncAllToFirestore = useCallback(async (): Promise<boolean> => {
+    try {
+      const locs = getSavedLocationsList();
+      const evts = getStoredEvents();
+      const teachers = getStoredTeacherAccounts();
+
+      await batchSaveLocationsToFirestore(locs);
+      for (const e of evts) {
+        await saveEventToFirestore(e);
+      }
+      for (const t of teachers) {
+        await saveTeacherToFirestore(t);
+      }
+
+      showToast(
+        language === 'hi'
+          ? 'सभी 4 कलेक्शंस Firebase Firestore में सफलतापूर्वक सिंक हो गए!'
+          : 'All collections successfully synced to Firebase Firestore!'
+      );
+      return true;
+    } catch (err) {
+      console.error('Firestore full sync error:', err);
+      showToast(
+        language === 'hi'
+          ? 'Firestore सिंक करने में त्रुटि हुई।'
+          : 'Failed to sync with Firebase Firestore.'
+      );
+      return false;
+    }
+  }, [language, showToast]);
 
   // Student Event Submission Handler
   const handleStudentSubmitEvent = (eventData: Omit<CampusEvent, 'id' | 'createdAt' | 'status' | 'isLive' | 'likesCount'>) => {
@@ -1843,6 +1911,7 @@ export function App() {
         onOpenTeacherAuth={() => setIsTeacherAuthOpen(true)}
         onTeacherLogout={handleTeacherLogout}
         onTeacherLoginSuccess={handleTeacherLoginSuccess}
+        onSyncToFirestore={handleSyncAllToFirestore}
       />
 
       {/* Teacher Authentication (Signup with ID Photo & Login) Modal */}

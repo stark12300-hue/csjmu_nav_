@@ -26,7 +26,10 @@ import {
   ExternalLink,
   LogOut,
   Smartphone,
-  DownloadCloud
+  DownloadCloud,
+  Database,
+  CloudCheck,
+  RefreshCw
 } from 'lucide-react';
 import {
   CampusLocation,
@@ -94,6 +97,7 @@ interface AdminLocationManagerModalProps {
   onOpenTeacherAuth?: () => void;
   onTeacherLogout?: () => void;
   onTeacherLoginSuccess?: (teacher: TeacherAccount) => void;
+  onSyncToFirestore?: () => Promise<boolean>;
 }
 
 export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps> = ({
@@ -138,8 +142,11 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
   onOpenTeacherAuth,
   onTeacherLogout,
   onTeacherLoginSuccess,
+  onSyncToFirestore,
 }) => {
   const [pinInput, setPinInput] = useState('');
+  const [isSyncingFirestore, setIsSyncingFirestore] = useState(false);
+  const [firestoreSyncStatus, setFirestoreSyncStatus] = useState<string | null>(null);
   const [pinError, setPinError] = useState(false);
   const [pinErrorMessage, setPinErrorMessage] = useState<string | null>(null);
   const [loginPortalMode, setLoginPortalMode] = useState<'admin' | 'faculty'>('admin');
@@ -979,6 +986,101 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
                             : 'Reposition any campus pin directly by dragging on map'}
                         </p>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Firebase Firestore Cloud Database Card */}
+                  <div className="p-4 bg-white border border-amber-200/90 shadow-2xs rounded-2xl space-y-3 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-700 border border-amber-300 flex items-center justify-center font-bold">
+                          <Database className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-zinc-900 flex items-center gap-1.5">
+                            <span>Firebase Firestore Cloud Database</span>
+                          </h4>
+                          <p className="text-[11px] text-zinc-500">
+                            {language === 'hi'
+                              ? 'कैंपस लोकेशन्स, इवेंट्स व शिक्षक डेटा क्लाउड पर रीयल-टाइम सुरक्षित'
+                              : 'Real-time multi-device cloud storage for locations, events & faculty'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1 border border-emerald-300">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Live Cloud Sync
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <div className="p-2 bg-amber-50/50 border border-amber-200/60 rounded-xl">
+                        <span className="text-[10px] text-amber-800 font-bold block uppercase tracking-wider">
+                          Project ID
+                        </span>
+                        <span className="font-mono text-zinc-800 font-bold">csjmu-nav</span>
+                      </div>
+                      <div className="p-2 bg-amber-50/50 border border-amber-200/60 rounded-xl">
+                        <span className="text-[10px] text-amber-800 font-bold block uppercase tracking-wider">
+                          Database
+                        </span>
+                        <span className="font-mono text-zinc-800 font-bold">(default)</span>
+                      </div>
+                      <div className="p-2 bg-amber-50/50 border border-amber-200/60 rounded-xl">
+                        <span className="text-[10px] text-amber-800 font-bold block uppercase tracking-wider">
+                          Collections
+                        </span>
+                        <span className="font-semibold text-zinc-800">4 Active Collections</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                      <p className="text-[11px] text-zinc-600 font-medium">
+                        {firestoreSyncStatus ? (
+                          <span className="text-emerald-700 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {firestoreSyncStatus}
+                          </span>
+                        ) : (
+                          <span>
+                            {language === 'hi'
+                              ? 'लोकल व बैकएंड डेटाबेस को सीधे Firestore में बैकअप और सिंक करें।'
+                              : 'Persist all campus data & events to Google Firebase Firestore.'}
+                          </span>
+                        )}
+                      </p>
+
+                      {onSyncToFirestore && (
+                        <button
+                          type="button"
+                          disabled={isSyncingFirestore}
+                          onClick={async () => {
+                            setIsSyncingFirestore(true);
+                            setFirestoreSyncStatus(null);
+                            const ok = await onSyncToFirestore();
+                            setIsSyncingFirestore(false);
+                            if (ok) {
+                              setFirestoreSyncStatus(
+                                language === 'hi'
+                                  ? 'सभी 4 कलेक्शंस सफलतापूर्वक सिंक हो गए!'
+                                  : 'All collections synced to Firestore!'
+                              );
+                            }
+                          }}
+                          className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs shrink-0 cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingFirestore ? 'animate-spin' : ''}`} />
+                          <span>
+                            {isSyncingFirestore
+                              ? language === 'hi'
+                                ? 'सिंक हो रहा है...'
+                                : 'Syncing...'
+                              : language === 'hi'
+                              ? 'अभी Firestore में सिंक करें'
+                              : 'Sync to Firestore Now'}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
 

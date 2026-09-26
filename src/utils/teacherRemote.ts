@@ -11,6 +11,7 @@ import {
   loginTeacher,
   resetTeacherAccountPassword,
 } from './storage';
+import { saveTeacherToFirestore } from '../services/firebase';
 
 export async function getRemoteTeacherAccounts(): Promise<TeacherAccount[]> {
   try {
@@ -162,6 +163,9 @@ export async function resetRemoteTeacherPassword(
 }
 
 export async function createRemoteTeacherAccount(account: TeacherAccount): Promise<{ success: boolean; message?: string }> {
+  // Mirror teacher profile to Firestore
+  saveTeacherToFirestore(account).catch(() => {});
+
   try {
     const res = await fetch('/api/teachers', {
       method: 'POST',

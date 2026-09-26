@@ -1,17 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public read and write for app data synchronization
-    match /campus_events/{eventId} {
-      allow read, write: if true;
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    match /campus_locations/{locationId} {
-      allow read, write: if true;
-    }
-
+    // Default deny all unknown collections
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // Campus events and notices (Readable by all students, teachers, visitors)
+    match /campus_events/{eventId} {
+      allow read: if true;
+      allow write: if isValidId(eventId);
+    }
+
+    // Campus locations and waypoints
+    match /campus_locations/{locationId} {
+      allow read: if true;
+      allow write: if isValidId(locationId);
+    }
+
+    // Teacher faculty directory and registration accounts
+    match /teacher_accounts/{teacherId} {
+      allow read: if true;
+      allow write: if isValidId(teacherId);
+    }
+
+    // User bug reports and navigation feedback
+    match /bug_reports/{reportId} {
+      allow read: if true;
+      allow create: if isValidId(reportId);
+      allow update, delete: if isValidId(reportId);
     }
   }
 }

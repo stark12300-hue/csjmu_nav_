@@ -11,6 +11,11 @@ import {
   syncLocalEventsWithRemote,
   getStoredEvents,
 } from './storage';
+import {
+  saveEventToFirestore,
+  deleteEventFromFirestore,
+  getEventsFromFirestore,
+} from '../services/firebase';
 
 function resolveAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -51,7 +56,14 @@ export async function fetchRemoteEvents(): Promise<CampusEvent[]> {
       return updated;
     }
   } catch (err) {
-    console.warn('Could not fetch remote events:', err);
+    console.warn('Could not fetch remote events from server, trying Firestore:', err);
+    try {
+      const firestoreEvents = await getEventsFromFirestore();
+      if (firestoreEvents && firestoreEvents.length > 0) {
+        const updated = syncLocalEventsWithRemote(firestoreEvents);
+        return updated;
+      }
+    } catch {}
   }
   return getStoredEvents();
 }
@@ -63,6 +75,9 @@ export async function fetchRemoteEvents(): Promise<CampusEvent[]> {
 export async function postRemoteEvent(
   eventData: CampusEvent
 ): Promise<{ success: boolean; message?: string; event?: CampusEvent; events?: CampusEvent[] }> {
+  // Always mirror directly to Firestore cloud database
+  saveEventToFirestore(eventData).catch((e) => console.warn('Firestore event save notice:', e));
+
   try {
     const headers = {
       'Content-Type': 'application/json',
@@ -129,6 +144,9 @@ export async function updateRemoteEvent(
       id: eventId,
     };
 
+    // Mirror to Firestore
+    saveEventToFirestore(payload as CampusEvent).catch(() => {});
+
     const res = await fetch(`/api/events/${encodeURIComponent(eventId)}`, {
       method: 'PATCH',
       headers,
@@ -175,6 +193,9 @@ export async function updateRemoteEvent(
 export async function deleteRemoteEvent(
   eventId: string
 ): Promise<{ success: boolean; message?: string; events?: CampusEvent[] }> {
+  // Mirror deletion to Firestore
+  deleteEventFromFirestore(eventId).catch(() => {});
+
   try {
     const headers = {
       ...resolveAuthHeaders(),

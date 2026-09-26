@@ -63,7 +63,7 @@ interface AdminLocationManagerModalProps {
   isAdminUnlocked: boolean;
   onUnlockAdmin: (pin: string) => boolean | Promise<any>;
   onLockAdmin: () => void;
-  onChangePin: (newPin: string) => boolean;
+  onChangePin: (newPin: string) => boolean | Promise<boolean>;
   locations: CampusLocation[];
   facultyList: FacultyMember[];
   coursesList: CourseDepartmentMapping[];
@@ -380,7 +380,7 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
     }
   };
 
-  const handleChangePinSubmit = (e: React.FormEvent) => {
+  const handleChangePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinChangeErr(null);
     setPinChangeSuccess(null);
@@ -394,7 +394,7 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
       return;
     }
 
-    const success = onChangePin(newPinInput);
+    const success = await onChangePin(newPinInput);
     if (success) {
       setPinChangeSuccess(language === 'hi' ? 'एडमिन पिन सफलतापूर्वक बदल दिया गया!' : 'Admin PIN changed successfully!');
       setCurrentPinInput('');

@@ -361,15 +361,12 @@ export function App() {
     // Sync remote faculty accounts to local storage
     hydrateTeacherAccountsFromServer().catch(() => {});
 
-    // Sync remote campus data (locations, department photos, faculty) from persistent server backup
-    syncCampusDataWithServerBackup().then((updated) => {
-      if (updated && isMounted) {
-        setLocations(getSavedLocationsList());
-        setFacultyList(getStoredFaculty());
-        setCoursesList(getStoredCourses());
-        setEvents(getStoredEvents());
-      }
-    }).catch(() => {});
+    // The server backup is only a legacy/bootstrap fallback. Firestore is the
+    // live source of truth for campus locations, events, faculty and courses.
+    // Do NOT copy the legacy backup back into React state here: doing so can
+    // overwrite a fresh Firestore edit (especially dragged coordinates or
+    // event live status) with an older snapshot.
+    syncCampusDataWithServerBackup().catch(() => {});
 
     // Validate teacher token with server on initial mount
     verifyTeacherSessionOnServer().then((res) => {

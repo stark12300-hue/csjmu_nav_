@@ -988,3 +988,15 @@ button, input, select, textarea {
     }
   }
 }
+
+
+/* Event poster title: force white text over poster image */
+#campus-events-modal-dialog .drop-shadow-md {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+#event-detail-modal-card h3 {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}

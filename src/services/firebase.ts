@@ -244,10 +244,32 @@ export function subscribeTeachersFromFirestore(onUpdate: (teachers: TeacherAccou
   );
 }
 
+function stripUndefinedValues<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefinedValues(item)) as T;
+  }
+  if (value && typeof value === 'object') {
+    const result: Record<string, any> = {};
+    Object.entries(value as Record<string, any>).forEach(([key, item]) => {
+      if (item !== undefined) {
+        result[key] = stripUndefinedValues(item);
+      }
+    });
+    return result as T;
+  }
+  return value;
+}
+
 export async function saveTeacherToFirestore(teacher: TeacherAccount): Promise<boolean> {
   const path = `teacher_accounts/${teacher.id}`;
   try {
-    await setDoc(doc(db, 'teacher_accounts', teacher.id), teacher);
+    // Firestore rejects undefined field values unless ignoreUndefinedProperties
+    // is enabled. TeacherAccount has several optional fields, so sanitize them
+    // before every write.
+    await setDoc(
+      doc(db, 'teacher_accounts', teacher.id),
+      stripUndefinedValues(teacher)
+    );
     return true;
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);

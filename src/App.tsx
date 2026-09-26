@@ -223,44 +223,6 @@ export function App() {
   const [isTeacherAuthOpen, setIsTeacherAuthOpen] = useState<boolean>(false);
   const [isTeacherPortalOpen, setIsTeacherPortalOpen] = useState<boolean>(false);
 
-  // Automatically open the event popup once when a currently-live approved event
-  // becomes available. The event is marked as shown per browser so the popup
-  // does not repeatedly interrupt the user every polling cycle.
-  useEffect(() => {
-    if (isEventsModalOpen || isAdminManagerOpen || isSubmitEventModalOpen || isTeacherPortalOpen) return;
-
-    const today = new Date().toISOString().split('T')[0];
-    const liveEvents = events.filter((event) => {
-      if (!event || event.status !== 'approved' || event.isLive === false) return false;
-      const start = event.startDate || today;
-      const end = event.endDate || start;
-      return start <= today && today <= end;
-    });
-
-    if (liveEvents.length === 0) return;
-
-    let shownIds: string[] = [];
-    try {
-      const raw = localStorage.getItem('csjmu_event_popup_shown_v2');
-      const parsed = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(parsed)) shownIds = parsed.filter((id) => typeof id === 'string');
-    } catch {}
-
-    const unseen = liveEvents.find((event) => !shownIds.includes(event.id));
-    if (!unseen) return;
-
-    const nextShown = [...shownIds, unseen.id].slice(-100);
-    try {
-      localStorage.setItem('csjmu_event_popup_shown_v2', JSON.stringify(nextShown));
-    } catch {}
-
-    const timer = window.setTimeout(() => {
-      setIsEventsModalOpen(true);
-    }, 500);
-
-    return () => window.clearTimeout(timer);
-  }, [events, isEventsModalOpen, isAdminManagerOpen, isSubmitEventModalOpen, isTeacherPortalOpen]);
-
 
   // Admin & Pin Relocation Mode
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(getAdminStatus());

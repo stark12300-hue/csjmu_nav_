@@ -34,8 +34,6 @@ const REMOTE_LOCATIONS_KEY = 'csjmu_remote_locations_v1';
 const REMOTE_FACULTY_KEY = 'csjmu_remote_faculty_v1';
 const REMOTE_COURSES_KEY = 'csjmu_remote_courses_v1';
 const REMOTE_EVENTS_KEY = 'csjmu_remote_events_v1';
-const COLLEGE_SYNCED_EVENTS_KEY = 'csjmu_college_synced_events_v1';
-const COLLEGE_LAST_SYNC_TIME_KEY = 'csjmu_college_last_sync_time_v1';
 
 // Teacher Accounts & Auth Storage Keys
 const TEACHER_ACCOUNTS_KEY = 'csjmu_teacher_accounts_v2';
@@ -1365,14 +1363,6 @@ export function getCustomFaculty(): FacultyMember[] {
 }
 
 
-export function getCollegeLastSyncTime(): string | null {
-  try {
-    return localStorage.getItem(COLLEGE_LAST_SYNC_TIME_KEY);
-  } catch {
-    return null;
-  }
-}
-
 export function getStoredEvents(): CampusEvent[] {
   try {
     let baseEvents: CampusEvent[] = CAMPUS_EVENTS;
@@ -1388,9 +1378,6 @@ export function getStoredEvents(): CampusEvent[] {
       }
     }
 
-    // Official college events auto-synced from csjmu.ac.in
-    const collegeRaw = localStorage.getItem(COLLEGE_SYNCED_EVENTS_KEY);
-    const collegeEvents: CampusEvent[] = collegeRaw ? JSON.parse(collegeRaw) : [];
 
     const deletedRaw = localStorage.getItem(DELETED_EVENTS_KEY);
     const deletedIds: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
@@ -1401,13 +1388,8 @@ export function getStoredEvents(): CampusEvent[] {
     const customRaw = localStorage.getItem(CUSTOM_EVENTS_KEY);
     const customEvents: CampusEvent[] = customRaw ? JSON.parse(customRaw) : [];
 
-    // Combine all sources: base, synced college feed, and custom
+    // Combine application events only: base/remote and custom events.
     const allSourceEvents = [...baseEvents];
-    collegeEvents.forEach((ce) => {
-      if (!allSourceEvents.some((b) => b.id === ce.id)) {
-        allSourceEvents.push(ce);
-      }
-    });
 
     // Auto-clean expired events (Option 3 client-side TTL: auto-delete past events)
     const todayStr = new Date().toISOString().split('T')[0];
@@ -1468,71 +1450,6 @@ export function getStoredEvents(): CampusEvent[] {
     console.error('Error reading stored events:', e);
     return CAMPUS_EVENTS;
   }
-}
-
-// Client-side auto-sync with CSJMU official website
-export async function syncOfficialCollegeEvents(force: boolean = false): Promise<{
-  success: boolean;
-  count: number;
-  events: CampusEvent[];
-  lastSync: string;
-  source: string;
-}> {
-  try {
-    const lastSync = localStorage.getItem(COLLEGE_LAST_SYNC_TIME_KEY);
-    const now = Date.now();
-
-    // Check if synced recently (within 6 hours) unless force is requested
-    if (!force && lastSync) {
-      const lastTime = new Date(lastSync).getTime();
-      if (!isNaN(lastTime) && now - lastTime < 6 * 60 * 60 * 1000) {
-        const cachedRaw = localStorage.getItem(COLLEGE_SYNCED_EVENTS_KEY);
-        if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw);
-          if (Array.isArray(cached) && cached.length > 0) {
-            return {
-              success: true,
-              count: cached.length,
-              events: getStoredEvents(),
-              lastSync,
-              source: 'csjmu.ac.in (cached)',
-            };
-          }
-        }
-      }
-    }
-
-    // Trigger sync API from server
-    const endpoint = force ? '/api/events/sync-college' : '/api/events/college-feed';
-    const method = force ? 'POST' : 'GET';
-    const res = await fetch(endpoint, { method });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.events && Array.isArray(data.events)) {
-        localStorage.setItem(COLLEGE_SYNCED_EVENTS_KEY, JSON.stringify(data.events));
-        const syncTimestamp = data.lastSynced || new Date().toISOString();
-        localStorage.setItem(COLLEGE_LAST_SYNC_TIME_KEY, syncTimestamp);
-        return {
-          success: true,
-          count: data.events.length,
-          events: getStoredEvents(),
-          lastSync: syncTimestamp,
-          source: data.source || 'csjmu.ac.in',
-        };
-      }
-    }
-  } catch (e) {
-    console.warn('Could not complete college events sync:', e);
-  }
-
-  return {
-    success: false,
-    count: 0,
-    events: getStoredEvents(),
-    lastSync: localStorage.getItem(COLLEGE_LAST_SYNC_TIME_KEY) || '',
-    source: 'csjmu.ac.in',
-  };
 }
 
 export function saveCustomEvent(event: CampusEvent): CampusEvent[] {

@@ -113,13 +113,16 @@ import {
   subscribeTeachersFromFirestore,
   batchSaveLocationsToFirestore,
   saveLocationToFirestore,
+  deleteLocationFromFirestore,
   saveEventToFirestore,
   saveTeacherToFirestore,
   batchSaveFacultyToFirestore,
   saveFacultyToFirestore,
+  deleteFacultyFromFirestore,
   subscribeFacultyFromFirestore,
   batchSaveCoursesToFirestore,
   saveCourseToFirestore,
+  deleteCourseFromFirestore,
   subscribeCoursesFromFirestore,
 } from './services/firebase';
 import { getStoredTeacherAccounts } from './utils/storage';
@@ -983,9 +986,7 @@ export function App() {
   const handleAdminDeleteCourse = (courseId: string) => {
     const updated = deleteCourseDepartmentMapping(courseId);
     setCoursesList(updated);
-    // Keep the local/server/GitHub deletion behavior unchanged; Firestore rules
-    // intentionally expose only document writes, so deletion is handled by the
-    // existing sync path until a dedicated delete helper is introduced.
+    deleteCourseFromFirestore(courseId).catch((e) => console.warn('Firestore course delete notice:', e));
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -998,6 +999,10 @@ export function App() {
   const handleAdminRestoreCourse = (courseId: string) => {
     const updated = restoreCourseDepartmentMapping(courseId);
     setCoursesList(updated);
+    const restored = updated.find((course) => course.courseId === courseId);
+    if (restored) {
+      saveCourseToFirestore(restored).catch((e) => console.warn('Firestore course restore notice:', e));
+    }
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -1036,6 +1041,7 @@ export function App() {
   const handleAdminDeleteFaculty = (facultyId: string) => {
     const updated = deleteFacultyMember(facultyId);
     setFacultyList(updated);
+    deleteFacultyFromFirestore(facultyId).catch((e) => console.warn('Firestore faculty delete notice:', e));
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -1048,6 +1054,10 @@ export function App() {
   const handleAdminRestoreFaculty = (facultyId: string) => {
     const updated = restoreFacultyMember(facultyId);
     setFacultyList(updated);
+    const restored = updated.find((faculty) => faculty.id === facultyId);
+    if (restored) {
+      saveFacultyToFirestore(restored).catch((e) => console.warn('Firestore faculty restore notice:', e));
+    }
     triggerAutoGitHubSync();
     showToast(
       language === 'hi'
@@ -1062,6 +1072,10 @@ export function App() {
     setLocations(updated);
     if (selectedLocation?.id === locationId) {
       setSelectedLocation(updated.find((l) => l.id === locationId) || null);
+    }
+    const updatedLocation = updated.find((l) => l.id === locationId);
+    if (updatedLocation) {
+      saveLocationToFirestore(updatedLocation).catch((e) => console.warn('Firestore location photo update notice:', e));
     }
     triggerAutoGitHubSync(updated);
     showToast(
@@ -1519,6 +1533,7 @@ export function App() {
         ? 'स्थान हटा दिया गया और डेटा साइट पर सुरक्षित सेव हो गया!'
         : 'Location deleted and saved to site storage!'
     );
+    deleteLocationFromFirestore(id).catch((e) => console.warn('Firestore location delete notice:', e));
     triggerAutoGitHubSync(updated);
   };
 
@@ -1526,6 +1541,10 @@ export function App() {
   const handleRestoreLocation = (id: string) => {
     const updated = restoreLocationById(id);
     setLocations(updated);
+    const restored = updated.find((l) => l.id === id);
+    if (restored) {
+      saveLocationToFirestore(restored).catch((e) => console.warn('Firestore location restore notice:', e));
+    }
     triggerAutoGitHubSync(updated);
     showToast(
       language === 'hi'

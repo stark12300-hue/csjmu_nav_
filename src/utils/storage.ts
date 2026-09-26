@@ -10,6 +10,7 @@ import {
   TeacherAccessPolicy,
 } from '../types';
 import { CAMPUS_LOCATIONS, INITIAL_FACULTY_MEMBERS, CSJMU_COURSES, CAMPUS_EVENTS } from '../data/csjmuCampusData';
+import { getAdminPinHashFromFirestore, saveAdminPinHashToFirestore } from '../services/firebase';
 
 const CUSTOM_LOCATIONS_KEY = 'csjmu_custom_locations_v3';
 const LOCATION_OVERRIDES_KEY = 'csjmu_location_overrides_v3';
@@ -463,12 +464,15 @@ export function getAdminPinHash(): string {
   }
 }
 
-export function saveCustomAdminPin(newPin: string): boolean {
+export async function saveCustomAdminPin(newPin: string): Promise<boolean> {
   try {
     const trimmed = newPin.trim();
-    if (!trimmed || trimmed.length < 4) return false;
-    localStorage.setItem(ADMIN_PIN_KEY + '_hash', hashAdminSecret(trimmed));
-    localStorage.removeItem(ADMIN_PIN_KEY); // clean up any legacy plaintext copy
+    if (!trimmed || trimmed.length < 4 || trimmed.length > 10) return false;
+    const hash = hashAdminSecret(trimmed);
+    const remoteSaved = await saveAdminPinHashToFirestore(hash);
+    if (!remoteSaved) return false;
+    localStorage.setItem(ADMIN_PIN_KEY + '_hash', hash);
+    localStorage.removeItem(ADMIN_PIN_KEY);
     return true;
   } catch (e) {
     console.error('Error saving admin pin:', e);

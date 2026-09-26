@@ -1465,9 +1465,6 @@ export function getStoredEvents(): CampusEvent[] {
     const customRaw = localStorage.getItem(CUSTOM_EVENTS_KEY);
     const customEvents: CampusEvent[] = customRaw ? JSON.parse(customRaw) : [];
 
-    // Combine application events only: base/remote and custom events.
-    const allSourceEvents = [...baseEvents];
-
     // Auto-clean expired events (Option 3 client-side TTL: auto-delete past events)
     const todayStr = new Date().toISOString().split('T')[0];
     const isNotExpired = (e: CampusEvent) => {

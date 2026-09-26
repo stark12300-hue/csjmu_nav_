@@ -204,9 +204,10 @@ export const AdminTeacherManager: React.FC<AdminTeacherManagerProps> = ({
     // immediately, without waiting for the polling interval.
     const unsubscribe = subscribeTeachersFromFirestore((remoteTeachers) => {
       const filtered = remoteTeachers.filter((t) => !isDemoTeacher(t));
-      if (filtered.length > 0) {
-        setTeachers(filtered);
-      }
+      // Firestore is the source of truth. Replace the admin list with the
+      // complete remote snapshot so pending requests from another device
+      // cannot be hidden by stale localStorage data.
+      setTeachers(filtered);
     });
 
     const timer = window.setInterval(() => {

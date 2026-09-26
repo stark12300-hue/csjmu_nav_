@@ -864,8 +864,8 @@ export function App() {
   };
 
   // Admin Change PIN
-  const handleChangeAdminPin = (newPin: string): boolean => {
-    const success = saveCustomAdminPin(newPin);
+  const handleChangeAdminPin = async (newPin: string): Promise<boolean> => {
+    const success = await saveCustomAdminPin(newPin);
     if (success) {
       showToast(
         language === 'hi'

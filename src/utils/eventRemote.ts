@@ -36,35 +36,59 @@ function resolveAuthHeaders(): Record<string, string> {
 }
 
 /**
+ * Merge the server event feed with Firestore.
+ * Firestore is authoritative for events that were created/edited/approved
+ * through the client. This prevents the Vercel/GitHub file cache from
+ * overwriting a newer Firestore approval with an older server snapshot.
+ */
+function mergeEventSources(serverEvents: CampusEvent[], firestoreEvents: CampusEvent[]): CampusEvent[] {
+  const merged = new Map<string, CampusEvent>();
+  serverEvents.forEach((event) => merged.set(event.id, event));
+  firestoreEvents.forEach((event) => merged.set(event.id, event));
+  return Array.from(merged.values()).sort((a, b) => {
+    const dateA = new Date(a.startDate || '').getTime() || a.createdAt || 0;
+    const dateB = new Date(b.startDate || '').getTime() || b.createdAt || 0;
+    return dateB - dateA;
+  });
+}
+
+/**
  * Fetch latest campus events from cloud server (/api/events)
  * Updates local cache and notifies UI subscribers.
  */
 export async function fetchRemoteEvents(): Promise<CampusEvent[]> {
+  let serverEvents: CampusEvent[] = [];
+  let firestoreEvents: CampusEvent[] = [];
+
   try {
     const res = await fetch('/api/events?ts=' + Date.now(), {
       cache: 'no-store',
     });
-    if (!res.ok) {
-      return getStoredEvents();
-    }
-    const data = await res.json().catch(() => ({}));
-    if (data?.success && Array.isArray(data.events)) {
-      const updated = syncLocalEventsWithRemote(data.events);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('csjmu_events_synced', { detail: { events: updated } }));
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data?.success && Array.isArray(data.events)) {
+        serverEvents = data.events;
       }
-      return updated;
     }
   } catch (err) {
-    console.warn('Could not fetch remote events from server, trying Firestore:', err);
-    try {
-      const firestoreEvents = await getEventsFromFirestore();
-      if (firestoreEvents && firestoreEvents.length > 0) {
-        const updated = syncLocalEventsWithRemote(firestoreEvents);
-        return updated;
-      }
-    } catch {}
+    console.warn('Could not fetch events from server:', err);
   }
+
+  try {
+    firestoreEvents = await getEventsFromFirestore();
+  } catch (err) {
+    console.warn('Could not fetch events from Firestore:', err);
+  }
+
+  if (serverEvents.length > 0 || firestoreEvents.length > 0) {
+    const updated = mergeEventSources(serverEvents, firestoreEvents);
+    syncLocalEventsWithRemote(updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('csjmu_events_synced', { detail: { events: updated } }));
+    }
+    return updated;
+  }
+
   return getStoredEvents();
 }
 
@@ -153,9 +177,6 @@ export async function updateRemoteEvent(
         id: eventId,
       };
 
-      // Mirror to Firestore
-      saveEventToFirestore(payload as CampusEvent).catch(() => {});
-
       const res = await fetch(`/api/events/${encodeURIComponent(eventId)}`, {
         method: 'PATCH',
         headers,
@@ -164,22 +185,45 @@ export async function updateRemoteEvent(
       });
 
       const data = await res.json().catch(() => ({}));
+
+      // Persist the final server result to Firestore when the API accepted it.
+      // If the API is unavailable, persist the requested update directly so
+      // approval/live status is not lost on the next Vercel restart.
+      const eventToPersist = (res.ok && data?.success && data?.event)
+        ? (data.event as CampusEvent)
+        : (payload as CampusEvent);
+      const firestoreSaved = await saveEventToFirestore(eventToPersist);
+
       if (res.ok && data?.success) {
-        if (Array.isArray(data.events)) {
-          syncLocalEventsWithRemote(data.events);
-        }
+        const firestoreEvents = await getEventsFromFirestore();
+        const serverEvents = Array.isArray(data.events) ? data.events as CampusEvent[] : [];
+        const merged = mergeEventSources(serverEvents, firestoreEvents);
+        syncLocalEventsWithRemote(merged);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('csjmu_events_synced', {
-              detail: { event: data.event, events: getStoredEvents() },
+              detail: { event: eventToPersist, events: merged },
             })
           );
         }
         return {
           success: true,
           message: data.message,
-          event: data.event,
-          events: getStoredEvents(),
+          event: eventToPersist,
+          events: merged,
+        };
+      }
+
+      // Firestore is the durable fallback for approval/live updates.
+      if (firestoreSaved) {
+        const firestoreEvents = await getEventsFromFirestore();
+        const merged = mergeEventSources([], firestoreEvents);
+        syncLocalEventsWithRemote(merged);
+        return {
+          success: true,
+          message: 'Event update saved to Firestore.',
+          event: eventToPersist,
+          events: merged,
         };
       }
 
@@ -211,15 +255,6 @@ export async function batchToggleRemoteEvents(
         ...resolveAuthHeaders(),
       };
 
-      // Mirror to Firestore in background
-      const localEvents = getStoredEvents();
-      eventIds.forEach((id) => {
-        const target = localEvents.find((e) => e.id === id);
-        if (target) {
-          saveEventToFirestore({ ...target, isLive }).catch(() => {});
-        }
-      });
-
       const res = await fetch('/api/events/batch-toggle', {
         method: 'POST',
         headers,
@@ -228,21 +263,45 @@ export async function batchToggleRemoteEvents(
       });
 
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.success) {
-        if (Array.isArray(data.events)) {
-          syncLocalEventsWithRemote(data.events);
+
+      // Persist the final live state to Firestore after the server accepts it.
+      // This keeps the state durable even if the Vercel filesystem/GitHub copy
+      // is later rehydrated from an older snapshot.
+      const localEvents = getStoredEvents();
+      for (const id of eventIds) {
+        const target = localEvents.find((e) => e.id === id);
+        if (target) {
+          await saveEventToFirestore({ ...target, isLive });
         }
+      }
+
+      if (res.ok && data?.success) {
+        const firestoreEvents = await getEventsFromFirestore();
+        const serverEvents = Array.isArray(data.events) ? data.events as CampusEvent[] : [];
+        const merged = mergeEventSources(serverEvents, firestoreEvents);
+        syncLocalEventsWithRemote(merged);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('csjmu_events_synced', {
-              detail: { events: getStoredEvents() },
+              detail: { events: merged },
             })
           );
         }
         return {
           success: true,
           message: data.message,
-          events: getStoredEvents(),
+          events: merged,
+        };
+      }
+
+      const firestoreEvents = await getEventsFromFirestore();
+      if (firestoreEvents.length > 0) {
+        const merged = mergeEventSources([], firestoreEvents);
+        syncLocalEventsWithRemote(merged);
+        return {
+          success: true,
+          message: 'Event live status saved to Firestore.',
+          events: merged,
         };
       }
 

@@ -255,6 +255,17 @@ export async function saveTeacherToFirestore(teacher: TeacherAccount): Promise<b
   }
 }
 
+export async function deleteTeacherFromFirestore(teacherId: string): Promise<boolean> {
+  const path = `teacher_accounts/${teacherId}`;
+  try {
+    await deleteDoc(doc(db, 'teacher_accounts', teacherId));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+    return false;
+  }
+}
+
 // ----------------------------------------------------
 // Bug Reports Firestore Operations
 // ----------------------------------------------------

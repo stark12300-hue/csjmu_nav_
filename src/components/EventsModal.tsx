@@ -610,8 +610,8 @@ export const EventsModal: React.FC<EventsModalProps> = ({
                       </div>
 
                       {/* Title Overlay at bottom of image */}
-                      <div className="absolute bottom-3 left-3 right-3 text-white">
-                        <h3 className="text-base sm:text-lg font-black leading-tight line-clamp-1 drop-shadow-md">
+                      <div className="absolute bottom-3 left-3 right-3" style={{ color: "#FFFFFF" }}>
+                        <h3 className="text-base sm:text-lg font-black leading-tight line-clamp-1 drop-shadow-md" style={{ color: "#FFFFFF" }}>
                           {activeLang === 'hi' && evt.hindiTitle ? evt.hindiTitle : evt.title}
                         </h3>
                         {evt.hindiTitle && activeLang !== 'hi' && (

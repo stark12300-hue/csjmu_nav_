@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { CampusLocation, Language } from '../types';
 import { TRANSLATIONS } from '../translations';
+import { saveBugReportToFirestore } from '../services/firebase';
 
 interface ReportBugModalProps {
   isOpen: boolean;
@@ -167,7 +168,21 @@ Target Support Email: ${TARGET_EMAIL}
     };
 
     try {
-      // 1. Try sending to backend API
+      // 1. Immediately mirror to Google Firebase Firestore database
+      saveBugReportToFirestore({
+        category,
+        categoryName: categoryLabels[category].en,
+        reporterName: name || 'Anonymous',
+        userContact: emailOrPhone,
+        departmentOrCourse,
+        location: locationName,
+        coordinates: selectedLocation?.coordinates || null,
+        description,
+        targetEmail: TARGET_EMAIL,
+        status: 'open',
+      }).catch((e) => console.warn('Firestore bug report notice:', e));
+
+      // 2. Try sending to backend API
       await fetch('/api/report-bug', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

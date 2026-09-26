@@ -107,7 +107,10 @@ import {
 import {
   testFirestoreConnection,
   subscribeEventsFromFirestore,
+  subscribeLocationsFromFirestore,
+  subscribeTeachersFromFirestore,
   batchSaveLocationsToFirestore,
+  saveLocationToFirestore,
   saveEventToFirestore,
   saveTeacherToFirestore,
 } from './services/firebase';
@@ -401,18 +404,27 @@ export function App() {
     fetchServerGitHubConfig().catch((e) => console.warn('Could not check server github config on boot:', e));
   }, []);
 
-  // Firebase Firestore Real-Time Synchronization & Connection
+  // Firebase Firestore Real-Time Synchronization & Automatic Cloud Backup
   useEffect(() => {
     testFirestoreConnection().then((ok) => {
       if (ok) {
         console.log('Firebase Firestore live connection established.');
+        // Initial automatic backup sync: ensure campus locations are backed up to Firestore
+        try {
+          const locs = getSavedLocationsList();
+          if (locs && locs.length > 0) {
+            batchSaveLocationsToFirestore(locs).catch((e) => console.warn('Initial Firestore sync notice:', e));
+          }
+        } catch (e) {
+          console.warn('Initial sync error:', e);
+        }
       }
     });
 
-    const unsubscribe = subscribeEventsFromFirestore((liveEvents) => {
+    // 1. Live Events Listener from Firestore
+    const unsubEvents = subscribeEventsFromFirestore((liveEvents) => {
       if (liveEvents && liveEvents.length > 0) {
         setEvents((prev) => {
-          // Merge or update events
           const map = new Map<string, CampusEvent>();
           for (const ev of prev) map.set(ev.id, ev);
           for (const ev of liveEvents) map.set(ev.id, ev);
@@ -421,8 +433,34 @@ export function App() {
       }
     });
 
+    // 2. Live Locations Listener from Firestore
+    const unsubLocations = subscribeLocationsFromFirestore((liveLocs) => {
+      if (liveLocs && liveLocs.length > 0) {
+        setLocations((prev) => {
+          const map = new Map<string, CampusLocation>();
+          for (const l of prev) map.set(l.id, l);
+          for (const l of liveLocs) map.set(l.id, l);
+          return Array.from(map.values());
+        });
+      }
+    });
+
+    // 3. Live Teachers Listener from Firestore
+    const unsubTeachers = subscribeTeachersFromFirestore((liveTeachers) => {
+      if (liveTeachers && liveTeachers.length > 0) {
+        setFacultyList((prev) => {
+          const map = new Map<string, any>();
+          for (const t of prev) map.set(t.id, t);
+          for (const t of liveTeachers) map.set(t.id, t);
+          return Array.from(map.values());
+        });
+      }
+    });
+
     return () => {
-      unsubscribe();
+      unsubEvents();
+      unsubLocations();
+      unsubTeachers();
     };
   }, []);
 
@@ -877,6 +915,7 @@ export function App() {
     setLocations(updated);
     setSelectedLocation(newLoc);
     setFocusCoordinates(newLoc.coordinates);
+    saveLocationToFirestore(newLoc).catch((e) => console.warn('Firestore location auto-save notice:', e));
     showToast(language === 'hi' ? 'नया स्थान सुरक्षित हो गया!' : 'New location saved successfully!');
     triggerAutoGitHubSync(updated);
   };
@@ -888,6 +927,7 @@ export function App() {
     if (selectedLocation?.id === loc.id) {
       setSelectedLocation(loc);
     }
+    saveLocationToFirestore(loc).catch((e) => console.warn('Firestore location update notice:', e));
     showToast(
       language === 'hi'
         ? 'स्थान व ब्लॉक का विवरण सुरक्षित हो गया!'

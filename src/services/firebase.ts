@@ -185,6 +185,28 @@ export async function batchSaveLocationsToFirestore(locations: CampusLocation[])
   }
 }
 
+export function subscribeLocationsFromFirestore(onUpdate: (locations: CampusLocation[]) => void): () => void {
+  const colPath = 'campus_locations';
+  return onSnapshot(
+    collection(db, colPath),
+    (snap) => {
+      const locations: CampusLocation[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data && data.id && data.coordinates) {
+          locations.push(data as CampusLocation);
+        }
+      });
+      if (locations.length > 0) {
+        onUpdate(locations);
+      }
+    },
+    (err) => {
+      handleFirestoreError(err, OperationType.LIST, colPath);
+    }
+  );
+}
+
 // ----------------------------------------------------
 // Teacher Accounts Firestore Operations
 // ----------------------------------------------------
@@ -201,6 +223,25 @@ export async function getTeachersFromFirestore(): Promise<TeacherAccount[]> {
     handleFirestoreError(err, OperationType.LIST, colPath);
     return [];
   }
+}
+
+export function subscribeTeachersFromFirestore(onUpdate: (teachers: TeacherAccount[]) => void): () => void {
+  const colPath = 'teacher_accounts';
+  return onSnapshot(
+    collection(db, colPath),
+    (snap) => {
+      const teachers: TeacherAccount[] = [];
+      snap.forEach((d) => {
+        teachers.push(d.data() as TeacherAccount);
+      });
+      if (teachers.length > 0) {
+        onUpdate(teachers);
+      }
+    },
+    (err) => {
+      handleFirestoreError(err, OperationType.LIST, colPath);
+    }
+  );
 }
 
 export async function saveTeacherToFirestore(teacher: TeacherAccount): Promise<boolean> {

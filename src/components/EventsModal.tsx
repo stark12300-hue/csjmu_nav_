@@ -739,11 +739,11 @@ export const EventsModal: React.FC<EventsModalProps> = ({
                 >
                   <X className="w-5 h-5" />
                 </button>
-                <div className="absolute bottom-3 left-4 right-4 text-white">
+                <div className="absolute bottom-3 left-4 right-4" style={{ color: "#FFFFFF" }}>
                   <span className="px-2.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wide">
                     {selectedEventForDetail.category}
                   </span>
-                  <h3 className="text-base sm:text-lg font-black mt-1 leading-snug">
+                  <h3 className="text-base sm:text-lg font-black mt-1 leading-snug" style={{ color: "#FFFFFF" }}>
                     {activeLang === 'hi' && selectedEventForDetail.hindiTitle
                       ? selectedEventForDetail.hindiTitle
                       : selectedEventForDetail.title}

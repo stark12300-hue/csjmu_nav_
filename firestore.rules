@@ -1,39 +1,54 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Accept the document IDs generated/used by the application.
+    // Firestore document IDs must be non-empty and no longer than 128 bytes.
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    // Default deny all unknown collections
+    // Block every collection that the application does not explicitly define below.
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Campus events and notices (Readable by all students, teachers, visitors)
+    // ============================================================
+    // CSJMU NAVIGATION DATA
+    // ============================================================
+
+    // Events, notices, student submissions and teacher/admin events.
     match /campus_events/{eventId} {
-      allow read: if true;
-      allow write: if isValidId(eventId);
+      allow read, write, delete: if isValidId(eventId);
     }
 
-    // Campus locations and waypoints
+    // Campus map locations, blocks, coordinates, photos, facilities,
+    // courses attached to a location and faculty attached to a location.
     match /campus_locations/{locationId} {
-      allow read: if true;
-      allow write: if isValidId(locationId);
+      allow read, write, delete: if isValidId(locationId);
     }
 
-    // Teacher faculty directory and registration accounts
+    // Teacher registration, ID-card photo, profile, approval status,
+    // permissions and login metadata.
     match /teacher_accounts/{teacherId} {
-      allow read: if true;
-      allow write: if isValidId(teacherId);
+      allow read, write, delete: if isValidId(teacherId);
     }
 
-    // User bug reports and navigation feedback
+    // Faculty directory profiles.
+    match /faculty_members/{facultyId} {
+      allow read, write, delete: if isValidId(facultyId);
+    }
+
+    // Department/course mappings, HOD details, rooms, floors and
+    // department descriptions.
+    match /course_departments/{courseId} {
+      allow read, write, delete: if isValidId(courseId);
+    }
+
+    // Bug reports / navigation feedback.
     match /bug_reports/{reportId} {
-      allow read: if true;
-      allow create: if isValidId(reportId);
-      allow update, delete: if isValidId(reportId);
+      allow read, write, delete: if isValidId(reportId);
     }
   }
 }

@@ -127,6 +127,7 @@ export const CampusMap: React.FC<CampusMapProps> = ({
         [26.8, 80.6],
       ],
       zoomControl: false,
+      attributionControl: true,
     });
 
     // Marker Layer Group

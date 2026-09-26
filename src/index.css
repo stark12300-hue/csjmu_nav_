@@ -518,13 +518,52 @@ div[id$="-form-modal-card"] {
   color: #18181B !important;
 }
 
-/* Hide Leaflet bottom-right attribution watermark control */
+/* Leaflet bottom-right attribution & map contributors */
 .leaflet-control-attribution,
 .leaflet-bottom.leaflet-right .leaflet-control-attribution {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  color: #334155 !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  padding: 2px 8px !important;
+  border-top-left-radius: 6px !important;
+  border: 1px solid rgba(203, 213, 225, 0.8) !important;
+  border-bottom: none !important;
+  border-right: none !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+  margin: 0 !important;
+  z-index: 10 !important;
+  user-select: text !important;
+}
+
+.leaflet-control-attribution a {
+  color: #2563eb !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+
+.leaflet-control-attribution a:hover {
+  text-decoration: underline !important;
+  color: #1d4ed8 !important;
+}
+
+@media (max-width: 640px) {
+  .leaflet-control-attribution,
+  .leaflet-bottom.leaflet-right .leaflet-control-attribution {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    max-width: 75vw !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
 }
 
 /* Minimalist Smooth Custom Scrollbars */

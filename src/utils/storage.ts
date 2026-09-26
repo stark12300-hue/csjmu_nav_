@@ -1444,14 +1444,14 @@ export function getStoredEvents(): CampusEvent[] {
     processedCustom.forEach((e) => {
       const existing = combinedMap.get(e.id);
       if (existing) {
-        // If remote has this event, authoritative remote status takes precedence
+        // If remote has this event, custom/overridden local status takes precedence for live toggle
         combinedMap.set(e.id, {
-          ...e,
           ...existing,
-          status: existing.status || e.status,
-          isLive: existing.isLive !== undefined ? existing.isLive : e.isLive,
-          approvedAt: existing.approvedAt || e.approvedAt,
-          rejectionReason: existing.rejectionReason || e.rejectionReason,
+          ...e,
+          status: e.status || existing.status,
+          isLive: e.isLive !== undefined ? e.isLive : existing.isLive,
+          approvedAt: e.approvedAt || existing.approvedAt,
+          rejectionReason: e.rejectionReason || existing.rejectionReason,
         });
       } else {
         combinedMap.set(e.id, e);
@@ -1619,19 +1619,54 @@ export function rejectStoredEvent(eventId: string, reason?: string): CampusEvent
   }
 }
 
-export function toggleEventLiveStatus(eventId: string): CampusEvent[] {
+export function toggleEventLiveStatus(eventId: string, explicitIsLive?: boolean): CampusEvent[] {
   try {
     const events = getStoredEvents();
     const target = events.find((e) => e.id === eventId);
     if (target) {
+      const nextIsLive = explicitIsLive !== undefined ? explicitIsLive : !target.isLive;
       return updateStoredEvent({
         ...target,
-        isLive: !target.isLive,
+        isLive: nextIsLive,
       });
     }
     return events;
   } catch (e) {
     console.error('Error toggling event live status:', e);
+    return getStoredEvents();
+  }
+}
+
+export function batchToggleEventsLiveStatus(eventIds: string[], targetIsLive: boolean): CampusEvent[] {
+  try {
+    const eventIdSet = new Set(eventIds);
+    const overridesRaw = localStorage.getItem(EVENT_OVERRIDES_KEY);
+    const overrides: Record<string, Partial<CampusEvent>> = overridesRaw ? JSON.parse(overridesRaw) : {};
+
+    const customRaw = localStorage.getItem(CUSTOM_EVENTS_KEY);
+    let customEvents: CampusEvent[] = customRaw ? JSON.parse(customRaw) : [];
+    let customModified = false;
+
+    const allEvents = getStoredEvents();
+    allEvents.forEach((evt) => {
+      if (eventIdSet.has(evt.id)) {
+        const customIdx = customEvents.findIndex((ce) => ce.id === evt.id);
+        if (customIdx >= 0) {
+          customEvents[customIdx] = { ...customEvents[customIdx], isLive: targetIsLive };
+          customModified = true;
+        } else {
+          overrides[evt.id] = { ...(overrides[evt.id] || evt), isLive: targetIsLive };
+        }
+      }
+    });
+
+    if (customModified) {
+      localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(customEvents));
+    }
+    localStorage.setItem(EVENT_OVERRIDES_KEY, JSON.stringify(overrides));
+    return getStoredEvents();
+  } catch (e) {
+    console.error('Error batch toggling events live status:', e);
     return getStoredEvents();
   }
 }
@@ -1842,6 +1877,27 @@ export function syncLocalEventsWithRemote(events: CampusEvent[]): CampusEvent[] 
             if (modified) {
               localStorage.setItem(CUSTOM_EVENTS_KEY, JSON.stringify(reconciled));
             }
+          }
+        } catch {}
+      }
+
+      // Reconcile overrides: if remote has caught up with our local override, clean it up
+      const overridesRaw = localStorage.getItem(EVENT_OVERRIDES_KEY);
+      if (overridesRaw) {
+        try {
+          const overrides: Record<string, Partial<CampusEvent>> = JSON.parse(overridesRaw);
+          let overridesModified = false;
+          events.forEach((re) => {
+            const ovr = overrides[re.id];
+            if (ovr) {
+              if (ovr.isLive === undefined || ovr.isLive === re.isLive) {
+                delete overrides[re.id];
+                overridesModified = true;
+              }
+            }
+          });
+          if (overridesModified) {
+            localStorage.setItem(EVENT_OVERRIDES_KEY, JSON.stringify(overrides));
           }
         } catch {}
       }

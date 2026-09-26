@@ -124,6 +124,14 @@ export async function postRemoteEvent(
   }
 }
 
+// Queue to serialize outbound event network requests and prevent concurrency collisions
+let eventNetworkQueue = Promise.resolve<any>(null);
+function queueEventUpdate<T>(fn: () => Promise<T>): Promise<T> {
+  const next = eventNetworkQueue.then(() => fn(), () => fn());
+  eventNetworkQueue = next;
+  return next;
+}
+
 /**
  * Update an existing event on cloud server (/api/events/:id)
  */
@@ -131,60 +139,125 @@ export async function updateRemoteEvent(
   eventId: string,
   updates: Partial<CampusEvent>
 ): Promise<{ success: boolean; message?: string; event?: CampusEvent; events?: CampusEvent[] }> {
-  try {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...resolveAuthHeaders(),
-    };
+  return queueEventUpdate(async () => {
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...resolveAuthHeaders(),
+      };
 
-    const localTarget = getStoredEvents().find((e) => e.id === eventId);
-    const payload = {
-      ...(localTarget || {}),
-      ...updates,
-      id: eventId,
-    };
+      const localTarget = getStoredEvents().find((e) => e.id === eventId);
+      const payload = {
+        ...(localTarget || {}),
+        ...updates,
+        id: eventId,
+      };
 
-    // Mirror to Firestore
-    saveEventToFirestore(payload as CampusEvent).catch(() => {});
+      // Mirror to Firestore
+      saveEventToFirestore(payload as CampusEvent).catch(() => {});
 
-    const res = await fetch(`/api/events/${encodeURIComponent(eventId)}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(payload),
-      cache: 'no-store',
-    });
+      const res = await fetch(`/api/events/${encodeURIComponent(eventId)}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(payload),
+        cache: 'no-store',
+      });
 
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data?.success) {
-      if (Array.isArray(data.events)) {
-        syncLocalEventsWithRemote(data.events);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success) {
+        if (Array.isArray(data.events)) {
+          syncLocalEventsWithRemote(data.events);
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('csjmu_events_synced', {
+              detail: { event: data.event, events: getStoredEvents() },
+            })
+          );
+        }
+        return {
+          success: true,
+          message: data.message,
+          event: data.event,
+          events: getStoredEvents(),
+        };
       }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('csjmu_events_synced', {
-            detail: { event: data.event, events: data.events },
-          })
-        );
-      }
+
       return {
-        success: true,
-        message: data.message,
-        event: data.event,
-        events: data.events || getStoredEvents(),
+        success: false,
+        message: data?.message || 'Failed to update event on cloud server.',
+      };
+    } catch (err: any) {
+      console.error('Remote event update error:', err);
+      return {
+        success: false,
+        message: err?.message || 'Network error while updating event on cloud.',
       };
     }
+  });
+}
 
-    return {
-      success: false,
-      message: data?.message || 'Failed to update event on cloud server.',
-    };
-  } catch (err: any) {
-    console.error('Remote event update error:', err);
-    return {
-      success: false,
-      message: err?.message || 'Network error while updating event on cloud.',
-    };
-  }
+/**
+ * Batch toggle live status on cloud server for multiple events simultaneously
+ */
+export async function batchToggleRemoteEvents(
+  eventIds: string[],
+  isLive: boolean
+): Promise<{ success: boolean; message?: string; events?: CampusEvent[] }> {
+  return queueEventUpdate(async () => {
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...resolveAuthHeaders(),
+      };
+
+      // Mirror to Firestore in background
+      const localEvents = getStoredEvents();
+      eventIds.forEach((id) => {
+        const target = localEvents.find((e) => e.id === id);
+        if (target) {
+          saveEventToFirestore({ ...target, isLive }).catch(() => {});
+        }
+      });
+
+      const res = await fetch('/api/events/batch-toggle', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ eventIds, isLive }),
+        cache: 'no-store',
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success) {
+        if (Array.isArray(data.events)) {
+          syncLocalEventsWithRemote(data.events);
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('csjmu_events_synced', {
+              detail: { events: getStoredEvents() },
+            })
+          );
+        }
+        return {
+          success: true,
+          message: data.message,
+          events: getStoredEvents(),
+        };
+      }
+
+      return {
+        success: false,
+        message: data?.message || 'Failed to batch toggle events on cloud server.',
+      };
+    } catch (err: any) {
+      console.error('Remote batch toggle error:', err);
+      return {
+        success: false,
+        message: err?.message || 'Network error while batch toggling events on cloud.',
+      };
+    }
+  });
 }
 
 /**

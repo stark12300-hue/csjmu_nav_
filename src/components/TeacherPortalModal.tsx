@@ -54,6 +54,7 @@ import {
   approveStoredEvent,
   rejectStoredEvent,
   toggleEventLiveStatus,
+  batchToggleEventsLiveStatus,
   deleteEventById,
   saveCustomLocation,
   getStoredFaculty,
@@ -76,6 +77,7 @@ import {
 import {
   postRemoteEvent,
   updateRemoteEvent,
+  batchToggleRemoteEvents,
   deleteRemoteEvent,
   fetchRemoteEvents,
 } from '../utils/eventRemote';
@@ -111,7 +113,8 @@ interface TeacherPortalModalProps {
   events?: CampusEvent[];
   onApproveEvent?: (eventId: string) => void;
   onRejectEvent?: (eventId: string, reason?: string) => void;
-  onToggleLiveEvent?: (eventId: string) => void;
+  onToggleLiveEvent?: (eventId: string, explicitIsLive?: boolean) => void;
+  onBatchToggleLiveEvents?: (eventIds: string[], isLive: boolean) => void;
   onDeleteEvent?: (eventId: string) => void;
   language: Language;
   initialTab?: 'profile' | 'events' | 'locations' | 'departments' | 'faculty' | 'idcard';
@@ -146,6 +149,7 @@ export const TeacherPortalModal: React.FC<TeacherPortalModalProps> = ({
   onApproveEvent,
   onRejectEvent,
   onToggleLiveEvent,
+  onBatchToggleLiveEvents,
   onDeleteEvent,
   language,
   initialTab,
@@ -154,6 +158,8 @@ export const TeacherPortalModal: React.FC<TeacherPortalModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'events' | 'locations' | 'departments' | 'faculty' | 'idcard'>(initialTab || 'profile');
   const [eventsSubTab, setEventsSubTab] = useState<'pending' | 'active' | 'create'>('pending');
+  const [selectedActiveEventIds, setSelectedActiveEventIds] = useState<Set<string>>(new Set());
+  const [isTeacherBatchProcessing, setIsTeacherBatchProcessing] = useState(false);
 
   // React to initialTab changes from parent
   useEffect(() => {
@@ -516,15 +522,67 @@ export const TeacherPortalModal: React.FC<TeacherPortalModalProps> = ({
 
   const handleToggleLive = async (eventId: string) => {
     const target = currentEvents.find((e) => e.id === eventId);
-    const newIsLive = target ? !target.isLive : true;
-    const updated = toggleEventLiveStatus(eventId);
+    const newIsLive = target ? !target.isLive : false;
+    const updated = toggleEventLiveStatus(eventId, newIsLive);
     setLocalEvents(updated);
     if (onToggleLiveEvent) {
-      onToggleLiveEvent(eventId);
+      onToggleLiveEvent(eventId, newIsLive);
+    } else {
+      await updateRemoteEvent(eventId, { isLive: newIsLive });
     }
-    await updateRemoteEvent(eventId, { isLive: newIsLive });
-    await syncTeacherCampusData(`Teacher toggled event live status: ${eventId}`);
-    showToast(language === 'hi' ? 'इवेंट लाइव स्थिति क्लाउड पर अपडेट हो गई!' : 'Event live status synced to cloud!');
+    showToast(
+      language === 'hi'
+        ? newIsLive
+          ? 'इवेंट लाइव कर दिया गया!'
+          : 'इवेंट बंद/ऑफ कर दिया गया!'
+        : newIsLive
+        ? 'Event is now live!'
+        : 'Event turned off successfully!'
+    );
+  };
+
+  const handleToggleSelectActiveEvent = (id: string) => {
+    setSelectedActiveEventIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAllActive = (list: CampusEvent[]) => {
+    if (selectedActiveEventIds.size >= list.length && list.length > 0) {
+      setSelectedActiveEventIds(new Set());
+    } else {
+      setSelectedActiveEventIds(new Set(list.map((e) => e.id)));
+    }
+  };
+
+  const handleBatchToggleTeacherEvents = async (targetLive: boolean) => {
+    const ids = Array.from(selectedActiveEventIds);
+    if (ids.length === 0) return;
+    setIsTeacherBatchProcessing(true);
+    try {
+      const updated = batchToggleEventsLiveStatus(ids, targetLive);
+      setLocalEvents(updated);
+      if (onBatchToggleLiveEvents) {
+        onBatchToggleLiveEvents(ids, targetLive);
+      } else {
+        await batchToggleRemoteEvents(ids, targetLive);
+      }
+      setSelectedActiveEventIds(new Set());
+      showToast(
+        language === 'hi'
+          ? targetLive
+            ? `${ids.length} इवेंट्स लाइव कर दिए गए!`
+            : `${ids.length} इवेंट्स बंद/ऑफ कर दिए गए!`
+          : targetLive
+          ? `${ids.length} events are now live!`
+          : `${ids.length} event popups turned off!`
+      );
+    } finally {
+      setIsTeacherBatchProcessing(false);
+    }
   };
 
   const executeDeleteEvent = async (eventId: string) => {
@@ -1425,6 +1483,61 @@ export const TeacherPortalModal: React.FC<TeacherPortalModalProps> = ({
               {/* 2. ACTIVE & APPROVED EVENTS LIST */}
               {eventsSubTab === 'active' && (
                 <div className="space-y-3">
+                  {approvedEventsList.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectAllActive(approvedEventsList)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-zinc-100 text-slate-800 border border-zinc-200 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedActiveEventIds.size > 0 && selectedActiveEventIds.size === approvedEventsList.length}
+                            onChange={() => {}}
+                            className="w-3.5 h-3.5 accent-blue-600 rounded pointer-events-none"
+                          />
+                          <span>
+                            {selectedActiveEventIds.size === approvedEventsList.length && approvedEventsList.length > 0
+                              ? language === 'hi' ? 'सभी अनचेक करें' : 'Deselect All'
+                              : language === 'hi' ? 'सभी चुनें' : 'Select All'}
+                          </span>
+                        </button>
+
+                        {selectedActiveEventIds.size > 0 && (
+                          <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg">
+                            {selectedActiveEventIds.size} {language === 'hi' ? 'चुने गए' : 'selected'}
+                          </span>
+                        )}
+                      </div>
+
+                      {selectedActiveEventIds.size > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={isTeacherBatchProcessing}
+                            onClick={() => handleBatchToggleTeacherEvents(false)}
+                            className="flex items-center gap-1 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-black transition active:scale-95 cursor-pointer shadow-2xs disabled:opacity-50"
+                            title="Turn off popups & live status for all selected events"
+                          >
+                            <Power className="w-3 h-3" />
+                            <span>{language === 'hi' ? 'चुने हुए बंद करें (Multi-Off)' : 'Turn Off Selected (Multi-Off)'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isTeacherBatchProcessing}
+                            onClick={() => handleBatchToggleTeacherEvents(true)}
+                            className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition active:scale-95 cursor-pointer shadow-2xs disabled:opacity-50"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>{language === 'hi' ? 'लाइव करें' : 'Make Live'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {approvedEventsList.length === 0 ? (
                     <div className="p-8 bg-white border border-zinc-200 rounded-2xl text-center">
                       <p className="text-xs text-zinc-500">No active events found.</p>
@@ -1435,16 +1548,25 @@ export const TeacherPortalModal: React.FC<TeacherPortalModalProps> = ({
                         key={evt.id}
                         className="p-3.5 bg-white border border-zinc-200 rounded-xl shadow-xs flex items-center justify-between gap-3 text-xs"
                       >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px]">
-                              {evt.category}
-                            </span>
-                            <h4 className="font-bold text-zinc-900 truncate">{evt.title}</h4>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={selectedActiveEventIds.has(evt.id)}
+                            onChange={() => handleToggleSelectActiveEvent(evt.id)}
+                            className="w-4 h-4 rounded text-blue-600 border-zinc-300 focus:ring-blue-500 cursor-pointer accent-blue-600 shrink-0"
+                            aria-label={`Select event ${evt.title}`}
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px]">
+                                {evt.category}
+                              </span>
+                              <h4 className="font-bold text-zinc-900 truncate">{evt.title}</h4>
+                            </div>
+                            <p className="text-zinc-500 text-[11px] mt-0.5">
+                              {evt.startDate} • {evt.venue} • {evt.organizer}
+                            </p>
                           </div>
-                          <p className="text-zinc-500 text-[11px] mt-0.5">
-                            {evt.startDate} • {evt.venue} • {evt.organizer}
-                          </p>
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">

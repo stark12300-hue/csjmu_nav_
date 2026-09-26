@@ -66,6 +66,7 @@ interface AdminLocationManagerModalProps {
   onApproveEvent?: (eventId: string) => void;
   onRejectEvent?: (eventId: string, reason?: string) => void;
   onToggleLiveEvent?: (eventId: string) => void;
+  onBatchToggleLiveEvents?: (eventIds: string[], isLive: boolean) => void;
   onUpdateEvent?: (event: CampusEvent) => void;
   onDeleteEvent?: (eventId: string) => void;
   onAddEvent?: (event: CampusEvent) => void;
@@ -110,6 +111,7 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
   onApproveEvent = (_id: string) => {},
   onRejectEvent = (_id: string, _reason?: string) => {},
   onToggleLiveEvent = (_id: string) => {},
+  onBatchToggleLiveEvents = (_ids: string[], _live: boolean) => {},
   onUpdateEvent = (_evt: CampusEvent) => {},
   onDeleteEvent = (_id: string) => {},
   onAddEvent = (_evt: CampusEvent) => {},
@@ -1147,6 +1149,7 @@ export const AdminLocationManagerModal: React.FC<AdminLocationManagerModalProps>
                   onApproveEvent={onApproveEvent}
                   onRejectEvent={onRejectEvent}
                   onToggleLiveEvent={onToggleLiveEvent}
+                  onBatchToggleLiveEvents={onBatchToggleLiveEvents}
                   onUpdateEvent={onUpdateEvent}
                   onDeleteEvent={onDeleteEvent}
                   onAddEvent={onAddEvent}

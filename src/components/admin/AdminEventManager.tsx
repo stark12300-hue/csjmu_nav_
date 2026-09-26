@@ -33,6 +33,7 @@ interface AdminEventManagerProps {
   onApproveEvent: (eventId: string) => void;
   onRejectEvent: (eventId: string, reason?: string) => void;
   onToggleLiveEvent: (eventId: string) => void;
+  onBatchToggleLiveEvents?: (eventIds: string[], isLive: boolean) => void;
   onUpdateEvent: (event: CampusEvent) => void;
   onDeleteEvent: (eventId: string) => void;
   onAddEvent: (event: CampusEvent) => void;
@@ -46,6 +47,7 @@ export const AdminEventManager: React.FC<AdminEventManagerProps> = ({
   onApproveEvent,
   onRejectEvent,
   onToggleLiveEvent,
+  onBatchToggleLiveEvents,
   onUpdateEvent,
   onDeleteEvent,
   onAddEvent,
@@ -61,6 +63,68 @@ export const AdminEventManager: React.FC<AdminEventManagerProps> = ({
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  // Multi-event selection & batch toggle states
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [togglingEventIds, setTogglingEventIds] = useState<Set<string>>(new Set());
+
+  // Handle single toggle safely with loading indicator
+  const handleSingleToggle = async (eventId: string) => {
+    setTogglingEventIds((prev) => new Set(prev).add(eventId));
+    try {
+      await onToggleLiveEvent(eventId);
+    } finally {
+      setTimeout(() => {
+        setTogglingEventIds((prev) => {
+          const next = new Set(prev);
+          next.delete(eventId);
+          return next;
+        });
+      }, 400);
+    }
+  };
+
+  // Toggle selection for an event
+  const toggleSelectEvent = (id: string) => {
+    setSelectedEventIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Select all or deselect all
+  const toggleSelectAll = (filteredList: CampusEvent[]) => {
+    if (selectedEventIds.size >= filteredList.length && filteredList.length > 0) {
+      setSelectedEventIds(new Set());
+    } else {
+      setSelectedEventIds(new Set(filteredList.map((e) => e.id)));
+    }
+  };
+
+  // Execute multi-event popup / live status toggle
+  const handleBatchToggleLive = async (targetLive: boolean) => {
+    const ids = Array.from(selectedEventIds);
+    if (ids.length === 0) return;
+    setIsBatchProcessing(true);
+    try {
+      if (onBatchToggleLiveEvents) {
+        await onBatchToggleLiveEvents(ids, targetLive);
+      } else {
+        for (const id of ids) {
+          await onToggleLiveEvent(id);
+        }
+      }
+      setSelectedEventIds(new Set());
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
 
   // Sync latest cloud events on mount
   useEffect(() => {
@@ -351,6 +415,70 @@ export const AdminEventManager: React.FC<AdminEventManagerProps> = ({
         </div>
       </div>
 
+      {/* Multi-Select & Batch Action Bar */}
+      {filteredEvents.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 bg-zinc-50 border border-zinc-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toggleSelectAll(filteredEvents)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-zinc-100 text-slate-800 border border-zinc-200 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+            >
+              <input
+                type="checkbox"
+                checked={selectedEventIds.size > 0 && selectedEventIds.size === filteredEvents.length}
+                onChange={() => {}}
+                className="w-3.5 h-3.5 accent-blue-600 rounded pointer-events-none"
+              />
+              <span>
+                {selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0
+                  ? currentLang === 'hi' ? 'सभी अनचेक करें' : 'Deselect All'
+                  : currentLang === 'hi' ? 'सभी चुनें' : 'Select All'}
+              </span>
+            </button>
+
+            {selectedEventIds.size > 0 && (
+              <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl">
+                {selectedEventIds.size} {currentLang === 'hi' ? 'चुने गए' : 'selected'}
+              </span>
+            )}
+          </div>
+
+          {selectedEventIds.size > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isBatchProcessing}
+                onClick={() => handleBatchToggleLive(false)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-xl text-xs font-black shadow-xs transition cursor-pointer disabled:opacity-50"
+                title="Turn off popups & live status for all selected events"
+              >
+                <Power className="w-3.5 h-3.5" />
+                <span>
+                  {isBatchProcessing
+                    ? currentLang === 'hi' ? 'प्रोसेसिंग...' : 'Processing...'
+                    : currentLang === 'hi' ? 'चुने हुए इवेंट्स बंद करें (Multi-Off)' : 'Turn Off Selected (Multi-Off)'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isBatchProcessing}
+                onClick={() => handleBatchToggleLive(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-black shadow-xs transition cursor-pointer disabled:opacity-50"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>
+                  {isBatchProcessing
+                    ? currentLang === 'hi' ? 'प्रोसेसिंग...' : 'Processing...'
+                    : currentLang === 'hi' ? 'चुने हुए लाइव करें' : 'Make Live'}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Events List */}
       <div className="space-y-3.5">
         {filteredEvents.length === 0 ? (
@@ -378,8 +506,18 @@ export const AdminEventManager: React.FC<AdminEventManagerProps> = ({
                     : ''
                 }`}
               >
-                {/* Left: Poster + Info */}
-                <div className="flex items-start gap-3.5 flex-1">
+                {/* Left: Checkbox + Poster + Info */}
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="pt-2 shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedEventIds.has(evt.id)}
+                      onChange={() => toggleSelectEvent(evt.id)}
+                      className="w-4 h-4 rounded text-blue-600 border-zinc-300 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      aria-label={`Select event ${evt.title}`}
+                    />
+                  </div>
+
                   <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200 dark:border-slate-700">
                     <img
                       src={evt.posterImage || 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80'}
@@ -499,15 +637,21 @@ export const AdminEventManager: React.FC<AdminEventManagerProps> = ({
                   {/* Toggle Live / Pause for approved events */}
                   {isApproved && (
                     <button
-                      onClick={() => onToggleLiveEvent(evt.id)}
-                      className={`p-2 rounded-xl text-xs font-semibold transition-colors ${
+                      type="button"
+                      disabled={togglingEventIds.has(evt.id)}
+                      onClick={() => handleSingleToggle(evt.id)}
+                      className={`p-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                        togglingEventIds.has(evt.id)
+                          ? 'opacity-60 scale-95'
+                          : 'active:scale-95'
+                      } ${
                         evt.isLive !== false
                           ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-400'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300'
                       }`}
-                      title={evt.isLive !== false ? 'Pause Live Listing' : 'Make Live'}
+                      title={evt.isLive !== false ? 'Pause Live Listing / Turn Off' : 'Make Live'}
                     >
-                      <Power className="w-4 h-4" />
+                      <Power className={`w-4 h-4 ${togglingEventIds.has(evt.id) ? 'animate-spin text-amber-500' : ''}`} />
                     </button>
                   )}
 

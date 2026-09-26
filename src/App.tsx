@@ -87,6 +87,7 @@ import {
   approveStoredEvent,
   rejectStoredEvent,
   toggleEventLiveStatus,
+  batchToggleEventsLiveStatus,
   applyRemoteCampusData,
   syncCampusDataWithServerBackup,
   getStoredActiveTeacherSession,
@@ -101,6 +102,7 @@ import { hydrateTeacherAccountsFromServer } from './utils/teacherRemote';
 import {
   postRemoteEvent,
   updateRemoteEvent,
+  batchToggleRemoteEvents,
   deleteRemoteEvent,
   fetchRemoteEvents,
 } from './utils/eventRemote';
@@ -1161,19 +1163,45 @@ export function App() {
     );
   };
 
-  const handleToggleLiveEvent = async (eventId: string) => {
-    const updated = toggleEventLiveStatus(eventId);
+  const handleToggleLiveEvent = async (eventId: string, explicitIsLive?: boolean) => {
+    const updated = toggleEventLiveStatus(eventId, explicitIsLive);
     setEvents(updated);
     triggerAutoGitHubSync();
     const target = updated.find((e) => e.id === eventId);
     if (target) {
       try {
         const res = await updateRemoteEvent(eventId, { isLive: target.isLive });
-        if (res.success && res.events) {
-          setEvents(res.events);
+        if (res.success) {
+          setEvents(getStoredEvents());
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Remote event toggle error:', e);
+      }
     }
+  };
+
+  const handleBatchToggleLiveEvents = async (eventIds: string[], targetIsLive: boolean) => {
+    if (!eventIds || eventIds.length === 0) return;
+    const updated = batchToggleEventsLiveStatus(eventIds, targetIsLive);
+    setEvents(updated);
+    triggerAutoGitHubSync();
+    try {
+      const res = await batchToggleRemoteEvents(eventIds, targetIsLive);
+      if (res.success) {
+        setEvents(getStoredEvents());
+      }
+    } catch (e) {
+      console.warn('Remote batch toggle error:', e);
+    }
+    showToast(
+      language === 'hi'
+        ? targetIsLive
+          ? `${eventIds.length} इवेंट्स लाइव कर दिए गए!`
+          : `${eventIds.length} इवेंट्स बंद/ऑफ कर दिए गए!`
+        : targetIsLive
+        ? `${eventIds.length} events are now live!`
+        : `${eventIds.length} event popups turned off successfully!`
+    );
   };
 
   const handleUpdateEvent = async (updatedEvent: CampusEvent) => {
@@ -1240,11 +1268,8 @@ export function App() {
 
     fetchLatest();
 
-    const handleSyncedEvent = (e: Event) => {
-      const custom = e as CustomEvent;
-      if (custom.detail?.events && Array.isArray(custom.detail.events)) {
-        setEvents(custom.detail.events);
-      }
+    const handleSyncedEvent = () => {
+      setEvents(getStoredEvents());
     };
     window.addEventListener('csjmu_events_synced', handleSyncedEvent);
 
@@ -1879,6 +1904,7 @@ export function App() {
         onApproveEvent={handleApproveEvent}
         onRejectEvent={handleRejectEvent}
         onToggleLiveEvent={handleToggleLiveEvent}
+        onBatchToggleLiveEvents={handleBatchToggleLiveEvents}
         onUpdateEvent={handleUpdateEvent}
         onDeleteEvent={handleDeleteEvent}
         onAddEvent={handleAddOfficialEvent}
@@ -1969,6 +1995,7 @@ export function App() {
           onApproveEvent={handleApproveEvent}
           onRejectEvent={handleRejectEvent}
           onToggleLiveEvent={handleToggleLiveEvent}
+          onBatchToggleLiveEvents={handleBatchToggleLiveEvents}
           onDeleteEvent={handleDeleteEvent}
         />
       )}

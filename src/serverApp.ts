@@ -2275,73 +2275,149 @@ app.post("/api/events", async (req, res) => {
   }
 });
 
+// Mutex queue to serialize disk operations and prevent concurrent write race conditions
+let eventWriteQueue = Promise.resolve();
+function runWithEventLock<T>(task: () => Promise<T> | T): Promise<T> {
+  const result = eventWriteQueue.then(() => task());
+  eventWriteQueue = result.then(() => {}, () => {});
+  return result;
+}
+
+// POST /api/events/batch-toggle - Turn on/off multiple events simultaneously in one atomic operation
+app.post("/api/events/batch-toggle", async (req, res) => {
+  return runWithEventLock(async () => {
+    try {
+      const isAdmin = isAuthorizedAdmin(req);
+      const authorizedTeacher = !isAdmin ? getAuthorizedTeacher(req) : null;
+
+      if (!isAdmin && !authorizedTeacher) {
+        return res.status(401).json({
+          success: false,
+          error: "UNAUTHORIZED",
+          message: "Admin or Teacher session required to toggle events.",
+        });
+      }
+
+      const { eventIds, isLive } = req.body || {};
+      if (!Array.isArray(eventIds) || eventIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "eventIds array is required.",
+        });
+      }
+
+      const targetIsLive = isLive !== false;
+      const persistent = getLocalPersistentEvents();
+      const all = getAllCampusEvents();
+      const now = Date.now();
+
+      const targetSet = new Set(eventIds);
+      targetSet.forEach((id) => {
+        const target = all.find((e) => e.id === id);
+        const existingIndex = persistent.findIndex((e) => e.id === id);
+
+        if (existingIndex >= 0) {
+          persistent[existingIndex] = {
+            ...persistent[existingIndex],
+            isLive: targetIsLive,
+            updatedAt: now,
+          };
+        } else if (target) {
+          persistent.unshift({
+            ...target,
+            isLive: targetIsLive,
+            updatedAt: now,
+          });
+        }
+      });
+
+      saveLocalPersistentEvents(persistent);
+      const freshAll = getAllCampusEvents();
+
+      res.json({
+        success: true,
+        message: targetIsLive
+          ? `${eventIds.length} इवेंट्स लाइव कर दिए गए!`
+          : `${eventIds.length} इवेंट्स को सफलतापूर्वक ऑफ/बंद कर दिया गया!`,
+        updatedCount: eventIds.length,
+        events: freshAll,
+      });
+    } catch (err: any) {
+      console.error("Error in batch-toggle events:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+});
+
 // PATCH /api/events/:id - Update, Approve, Reject, or Toggle Live status
 app.patch("/api/events/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const isAdmin = isAuthorizedAdmin(req);
-    const authorizedTeacher = !isAdmin ? getAuthorizedTeacher(req) : null;
+  return runWithEventLock(async () => {
+    try {
+      const { id } = req.params;
+      const isAdmin = isAuthorizedAdmin(req);
+      const authorizedTeacher = !isAdmin ? getAuthorizedTeacher(req) : null;
 
-    if (!isAdmin && !authorizedTeacher) {
-      return res.status(401).json({
-        success: false,
-        error: "UNAUTHORIZED",
-        message: "Admin or Teacher session required to update campus events.",
-      });
-    }
-
-    const updates = req.body || {};
-    const persistent = getLocalPersistentEvents();
-    const all = getAllCampusEvents();
-    let target = all.find((e) => e.id === id);
-
-    let updatedEvent: any;
-    if (!target) {
-      // Upsert: Create as persistent event if not found on server
-      updatedEvent = {
-        id,
-        title: updates.title || "Campus Event",
-        description: updates.description || "",
-        category: updates.category || "General",
-        startDate: updates.startDate || new Date().toISOString().split("T")[0],
-        endDate: updates.endDate || updates.startDate || new Date().toISOString().split("T")[0],
-        time: updates.time || "10:00 AM - 04:00 PM",
-        venue: updates.venue || "CSJMU Campus",
-        organizer: updates.organizer || (isAdmin ? "CSJMU Administration" : (authorizedTeacher?.teacher?.name || "CSJMU Faculty")),
-        ...updates,
-        status: updates.status || "approved",
-        isLive: updates.isLive !== false,
-        createdAt: updates.createdAt || Date.now(),
-        updatedAt: Date.now(),
-      };
-      persistent.unshift(updatedEvent);
-    } else {
-      updatedEvent = {
-        ...target,
-        ...updates,
-        id, // Preserve ID
-        updatedAt: Date.now(),
-      };
-      const existingIndex = persistent.findIndex((e) => e.id === id);
-      if (existingIndex >= 0) {
-        persistent[existingIndex] = updatedEvent;
-      } else {
-        persistent.unshift(updatedEvent);
+      if (!isAdmin && !authorizedTeacher) {
+        return res.status(401).json({
+          success: false,
+          error: "UNAUTHORIZED",
+          message: "Admin or Teacher session required to update campus events.",
+        });
       }
-    }
-    saveLocalPersistentEvents(persistent);
 
-    const freshAll = getAllCampusEvents();
-    res.json({
-      success: true,
-      message: "इवेंट जानकारी क्लाउड पर अपडेट हो गई!",
-      event: updatedEvent,
-      events: freshAll,
-    });
-  } catch (err: any) {
-    console.error("Error updating event:", err);
-    res.status(500).json({ success: false, error: err.message });
-  }
+      const updates = req.body || {};
+      const persistent = getLocalPersistentEvents();
+      const all = getAllCampusEvents();
+      let target = all.find((e) => e.id === id);
+
+      let updatedEvent: any;
+      if (!target) {
+        // Upsert: Create as persistent event if not found on server
+        updatedEvent = {
+          id,
+          title: updates.title || "Campus Event",
+          description: updates.description || "",
+          category: updates.category || "General",
+          startDate: updates.startDate || new Date().toISOString().split("T")[0],
+          endDate: updates.endDate || updates.startDate || new Date().toISOString().split("T")[0],
+          time: updates.time || "10:00 AM - 04:00 PM",
+          venue: updates.venue || "CSJMU Campus",
+          organizer: updates.organizer || (isAdmin ? "CSJMU Administration" : (authorizedTeacher?.teacher?.name || "CSJMU Faculty")),
+          ...updates,
+          status: updates.status || "approved",
+          isLive: updates.isLive !== false,
+          createdAt: updates.createdAt || Date.now(),
+          updatedAt: Date.now(),
+        };
+        persistent.unshift(updatedEvent);
+      } else {
+        updatedEvent = {
+          ...target,
+          ...updates,
+          id, // Preserve ID
+          updatedAt: Date.now(),
+        };
+        const existingIndex = persistent.findIndex((e) => e.id === id);
+        if (existingIndex >= 0) {
+          persistent[existingIndex] = updatedEvent;
+        } else {
+          persistent.unshift(updatedEvent);
+        }
+      }
+      saveLocalPersistentEvents(persistent);
+
+      const freshAll = getAllCampusEvents();
+      res.json({
+        success: true,
+        message: "इवेंट जानकारी क्लाउड पर अपडेट हो गई!",
+        event: updatedEvent,
+        events: freshAll,
+      });
+    } catch (err: any) {
+      console.error("Error updating event:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
 });
 
 // DELETE /api/events/:id - Remove or mark event deleted

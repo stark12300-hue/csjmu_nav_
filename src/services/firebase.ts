@@ -459,3 +459,34 @@ export async function saveBugReportToFirestore(report: any): Promise<boolean> {
     return false;
   }
 }
+
+
+// ----------------------------------------------------
+// Admin Security PIN Firestore Operations
+// ----------------------------------------------------
+const ADMIN_SECURITY_DOC = 'admin_config/security';
+
+export async function getAdminPinHashFromFirestore(): Promise<string> {
+  try {
+    const snap = await getDocFromServer(doc(db, 'admin_config', 'security'));
+    const data = snap.exists() ? snap.data() : null;
+    return typeof data?.pinHash === 'string' ? data.pinHash : '';
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, ADMIN_SECURITY_DOC);
+    return '';
+  }
+}
+
+export async function saveAdminPinHashToFirestore(pinHash: string): Promise<boolean> {
+  try {
+    await setDoc(
+      doc(db, 'admin_config', 'security'),
+      { pinHash, updatedAt: Date.now() },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, ADMIN_SECURITY_DOC);
+    return false;
+  }
+}

@@ -215,6 +215,14 @@ export function App() {
   const [isEventsModalOpen, setIsEventsModalOpen] = useState<boolean>(false);
   const [isSubmitEventModalOpen, setIsSubmitEventModalOpen] = useState<boolean>(false);
 
+
+  // Teacher Authentication & Portal System
+  const [loggedInTeacher, setLoggedInTeacher] = useState<TeacherAccount | null>(() =>
+    getStoredActiveTeacherSession()
+  );
+  const [isTeacherAuthOpen, setIsTeacherAuthOpen] = useState<boolean>(false);
+  const [isTeacherPortalOpen, setIsTeacherPortalOpen] = useState<boolean>(false);
+
   // Automatically open the event popup once when a currently-live approved event
   // becomes available. The event is marked as shown per browser so the popup
   // does not repeatedly interrupt the user every polling cycle.
@@ -253,13 +261,6 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [events, isEventsModalOpen, isAdminManagerOpen, isSubmitEventModalOpen, isTeacherPortalOpen]);
 
-
-  // Teacher Authentication & Portal System
-  const [loggedInTeacher, setLoggedInTeacher] = useState<TeacherAccount | null>(() =>
-    getStoredActiveTeacherSession()
-  );
-  const [isTeacherAuthOpen, setIsTeacherAuthOpen] = useState<boolean>(false);
-  const [isTeacherPortalOpen, setIsTeacherPortalOpen] = useState<boolean>(false);
 
   // Admin & Pin Relocation Mode
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(getAdminStatus());

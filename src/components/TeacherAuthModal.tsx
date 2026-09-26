@@ -311,8 +311,8 @@ export const TeacherAuthModal: React.FC<TeacherAuthModalProps> = ({
           }
           setSignupError(
             language === 'hi'
-              ? `पंजीकरण सर्वर त्रुटि: ${remote.message || 'कृपया दोबारा प्रयास करें।'}`
-              : `Server signup error: ${remote.message || 'Please check your connection and try again.'}`
+              ? `पंजीकरण Firestore त्रुटि: ${remote.message || 'कृपया दोबारा प्रयास करें।'}`
+              : `Firestore signup error: ${remote.message || 'Please check your connection and try again.'}`
           );
           return;
         }

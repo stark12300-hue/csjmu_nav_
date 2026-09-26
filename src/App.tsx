@@ -80,7 +80,6 @@ import {
   getAdminPinHash,
   getStoredFaculty,
   getStoredEvents,
-  syncOfficialCollegeEvents,
   saveCustomEvent,
   updateStoredEvent,
   deleteEventById,
